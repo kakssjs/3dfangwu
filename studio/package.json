@@ -1,0 +1,23 @@
+{
+  "name": "studio",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Our own code for the one-stop housing platform: the home record (N9) and the connectors to the one-stop parts (N11 Homebox).",
+  "license": "UNLICENSED",
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "test": "node --disable-warning=ExperimentalWarning --test \"test/*.test.ts\"",
+    "test:live": "node --disable-warning=ExperimentalWarning --test \"test/live/*.test.ts\"",
+    "typecheck": "tsc -p .",
+    "sample": "node --disable-warning=ExperimentalWarning scripts/extract-floorplan-sample.ts",
+    "home": "node --disable-warning=ExperimentalWarning scripts/home.ts",
+    "homebox": "node --disable-warning=ExperimentalWarning scripts/homebox.ts"
+  },
+  "devDependencies": {
+    "@types/node": "24.19.2",
+    "typescript": "7.0.2"
+  }
+}

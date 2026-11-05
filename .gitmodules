@@ -1,0 +1,27 @@
+[submodule "floorplan-3d"]
+	path = floorplan-3d
+	url = https://github.com/wy51ai/floorplan-3d.git
+[submodule "roomGPT"]
+	path = roomGPT
+	url = https://github.com/Nutlope/roomGPT.git
+[submodule "mcp-for-blender"]
+	path = mcp-for-blender
+	url = https://github.com/ahujasid/mcp-for-blender.git
+[submodule "pascal-editor"]
+	path = pascal-editor
+	url = https://github.com/pascalorg/editor.git
+[submodule "SpatialLM"]
+	path = SpatialLM
+	url = https://github.com/manycore-research/SpatialLM.git
+[submodule "twenty"]
+	path = twenty
+	url = https://github.com/twentyhq/twenty.git
+[submodule "homebox"]
+	path = homebox
+	url = https://github.com/sysadminsmedia/homebox.git
+[submodule "micasa"]
+	path = micasa
+	url = https://github.com/micasa-dev/micasa.git
+[submodule "home-assistant-core"]
+	path = home-assistant-core
+	url = https://github.com/home-assistant/core.git

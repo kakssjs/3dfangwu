@@ -1,0 +1,1044 @@
+{
+  "schema": "studio.home/1",
+  "id": "demo",
+  "name": "样板间 · 三室两厅两卫",
+  "stage": "design",
+  "rooms": [
+    {
+      "id": "master",
+      "name": "主卧室",
+      "areaM2": 12.37,
+      "counted": true
+    },
+    {
+      "id": "mbath",
+      "name": "主卫浴",
+      "areaM2": 3.2,
+      "counted": true
+    },
+    {
+      "id": "kid",
+      "name": "小孩房",
+      "areaM2": 9.3,
+      "counted": true
+    },
+    {
+      "id": "gbath",
+      "name": "客卫浴",
+      "areaM2": 2.89,
+      "counted": true
+    },
+    {
+      "id": "laundry",
+      "name": "洗衣阳台",
+      "areaM2": 2.92,
+      "counted": true
+    },
+    {
+      "id": "child",
+      "name": "子女房",
+      "areaM2": 10.89,
+      "counted": true
+    },
+    {
+      "id": "kitchen",
+      "name": "厨房",
+      "areaM2": 6.04,
+      "counted": true
+    },
+    {
+      "id": "dining",
+      "name": "餐厅",
+      "areaM2": 7.03,
+      "counted": true
+    },
+    {
+      "id": "hall",
+      "name": "过道",
+      "areaM2": 5.71,
+      "counted": true
+    },
+    {
+      "id": "living",
+      "name": "客厅",
+      "areaM2": 21.53,
+      "counted": true
+    },
+    {
+      "id": "balcony",
+      "name": "休闲阳台",
+      "areaM2": 5.29,
+      "counted": true
+    },
+    {
+      "id": "bay1",
+      "name": "主卧飘窗",
+      "areaM2": 1.41,
+      "counted": false
+    },
+    {
+      "id": "bay2",
+      "name": "子女房飘窗",
+      "areaM2": 1.17,
+      "counted": false
+    }
+  ],
+  "furniture": [
+    {
+      "id": "bed-1",
+      "type": "bed",
+      "name": "双人床",
+      "roomId": "master",
+      "roomGuessed": false,
+      "sizeMm": {
+        "w": 1800,
+        "d": 2000
+      }
+    },
+    {
+      "id": "nightstand-1",
+      "type": "nightstand",
+      "name": "床头柜",
+      "roomId": "master",
+      "roomGuessed": false,
+      "sizeMm": {
+        "w": 450,
+        "d": 400
+      }
+    },
+    {
+      "id": "nightstand-2",
+      "type": "nightstand",
+      "name": "床头柜",
+      "roomId": "master",
+      "roomGuessed": false,
+      "sizeMm": {
+        "w": 450,
+        "d": 400
+      }
+    },
+    {
+      "id": "wardrobe-1",
+      "type": "wardrobe",
+      "name": "衣柜",
+      "roomId": "master",
+      "roomGuessed": false,
+      "sizeMm": {
+        "w": 2400,
+        "d": 600
+      }
+    },
+    {
+      "id": "baycushion-1",
+      "type": "baycushion",
+      "name": "飘窗垫",
+      "roomId": "bay1",
+      "roomGuessed": false,
+      "sizeMm": {
+        "w": 520,
+        "d": 1800
+      }
+    },
+    {
+      "id": "shower-1",
+      "type": "shower",
+      "name": "淋浴房",
+      "roomId": "mbath",
+      "roomGuessed": false,
+      "sizeMm": {
+        "w": 900,
+        "d": 900
+      }
+    },
+    {
+      "id": "toilet-1",
+      "type": "toilet",
+      "name": "马桶",
+      "roomId": "mbath",
+      "roomGuessed": false,
+      "sizeMm": {
+        "w": 400,
+        "d": 700
+      }
+    },
+    {
+      "id": "vanity-1",
+      "type": "vanity",
+      "name": "浴室柜",
+      "roomId": "mbath",
+      "roomGuessed": false,
+      "sizeMm": {
+        "w": 800,
+        "d": 500
+      }
+    },
+    {
+      "id": "bed-2",
+      "type": "bed",
+      "name": "单人床",
+      "roomId": "kid",
+      "roomGuessed": false,
+      "sizeMm": {
+        "w": 1200,
+        "d": 2000
+      }
+    },
+    {
+      "id": "desk-1",
+      "type": "desk",
+      "name": "书桌",
+      "roomId": "kid",
+      "roomGuessed": false,
+      "sizeMm": {
+        "w": 1200,
+        "d": 600
+      }
+    },
+    {
+      "id": "chair-1",
+      "type": "chair",
+      "name": "椅子",
+      "roomId": "kid",
+      "roomGuessed": false,
+      "sizeMm": {
+        "w": 450,
+        "d": 480
+      }
+    },
+    {
+      "id": "wardrobe-2",
+      "type": "wardrobe",
+      "name": "衣柜",
+      "roomId": "kid",
+      "roomGuessed": false,
+      "sizeMm": {
+        "w": 1600,
+        "d": 600
+      }
+    },
+    {
+      "id": "bookshelf-1",
+      "type": "bookshelf",
+      "name": "书架",
+      "roomId": "kid",
+      "roomGuessed": false,
+      "sizeMm": {
+        "w": 800,
+        "d": 300
+      }
+    },
+    {
+      "id": "shower-2",
+      "type": "shower",
+      "name": "淋浴区",
+      "roomId": "gbath",
+      "roomGuessed": false,
+      "sizeMm": {
+        "w": 900,
+        "d": 1340
+      }
+    },
+    {
+      "id": "toilet-2",
+      "type": "toilet",
+      "name": "马桶",
+      "roomId": "gbath",
+      "roomGuessed": false,
+      "sizeMm": {
+        "w": 400,
+        "d": 700
+      }
+    },
+    {
+      "id": "vanity-2",
+      "type": "vanity",
+      "name": "浴室柜",
+      "roomId": "gbath",
+      "roomGuessed": false,
+      "sizeMm": {
+        "w": 700,
+        "d": 480
+      }
+    },
+    {
+      "id": "vanity-3",
+      "type": "vanity",
+      "name": "洗衣池",
+      "roomId": "laundry",
+      "roomGuessed": false,
+      "sizeMm": {
+        "w": 600,
+        "d": 500
+      }
+    },
+    {
+      "id": "counter-1",
+      "type": "counter",
+      "name": "橱柜台面",
+      "roomId": "kitchen",
+      "roomGuessed": false,
+      "sizeMm": {
+        "w": 2770,
+        "d": 600
+      }
+    },
+    {
+      "id": "counter-2",
+      "type": "counter",
+      "name": "橱柜台面",
+      "roomId": "kitchen",
+      "roomGuessed": false,
+      "sizeMm": {
+        "w": 1580,
+        "d": 600
+      }
+    },
+    {
+      "id": "ksink-1",
+      "type": "ksink",
+      "name": "水槽",
+      "roomId": "kitchen",
+      "roomGuessed": false,
+      "sizeMm": {
+        "w": 800,
+        "d": 450
+      }
+    },
+    {
+      "id": "table-1",
+      "type": "table",
+      "name": "餐桌",
+      "roomId": "dining",
+      "roomGuessed": false,
+      "sizeMm": {
+        "w": 1400,
+        "d": 800
+      }
+    },
+    {
+      "id": "chair-2",
+      "type": "chair",
+      "name": "餐椅",
+      "roomId": "dining",
+      "roomGuessed": false,
+      "sizeMm": {
+        "w": 450,
+        "d": 480
+      }
+    },
+    {
+      "id": "chair-3",
+      "type": "chair",
+      "name": "餐椅",
+      "roomId": "dining",
+      "roomGuessed": false,
+      "sizeMm": {
+        "w": 450,
+        "d": 480
+      }
+    },
+    {
+      "id": "chair-4",
+      "type": "chair",
+      "name": "餐椅",
+      "roomId": "dining",
+      "roomGuessed": false,
+      "sizeMm": {
+        "w": 450,
+        "d": 480
+      }
+    },
+    {
+      "id": "chair-5",
+      "type": "chair",
+      "name": "餐椅",
+      "roomId": "dining",
+      "roomGuessed": false,
+      "sizeMm": {
+        "w": 450,
+        "d": 480
+      }
+    },
+    {
+      "id": "cabinet-1",
+      "type": "cabinet",
+      "name": "餐边柜",
+      "roomId": "dining",
+      "roomGuessed": false,
+      "sizeMm": {
+        "w": 1600,
+        "d": 350
+      }
+    },
+    {
+      "id": "rug-1",
+      "type": "rug",
+      "name": "地毯",
+      "roomId": "living",
+      "roomGuessed": false,
+      "sizeMm": {
+        "w": 2600,
+        "d": 1800
+      }
+    },
+    {
+      "id": "tvstand-1",
+      "type": "tvstand",
+      "name": "电视柜",
+      "roomId": "living",
+      "roomGuessed": false,
+      "sizeMm": {
+        "w": 2400,
+        "d": 400
+      }
+    },
+    {
+      "id": "sofa-1",
+      "type": "sofa",
+      "name": "三人沙发",
+      "roomId": "living",
+      "roomGuessed": false,
+      "sizeMm": {
+        "w": 3000,
+        "d": 900
+      }
+    },
+    {
+      "id": "coffeetable-1",
+      "type": "coffeetable",
+      "name": "茶几",
+      "roomId": "living",
+      "roomGuessed": false,
+      "sizeMm": {
+        "w": 1300,
+        "d": 650
+      }
+    },
+    {
+      "id": "armchair-1",
+      "type": "armchair",
+      "name": "单人沙发",
+      "roomId": "living",
+      "roomGuessed": false,
+      "sizeMm": {
+        "w": 850,
+        "d": 850
+      }
+    },
+    {
+      "id": "shoecab-1",
+      "type": "shoecab",
+      "name": "鞋柜",
+      "roomId": "living",
+      "roomGuessed": false,
+      "sizeMm": {
+        "w": 1000,
+        "d": 350
+      }
+    },
+    {
+      "id": "plant-1",
+      "type": "plant",
+      "name": "绿植",
+      "roomId": "living",
+      "roomGuessed": false,
+      "sizeMm": {
+        "w": 500,
+        "d": 500
+      }
+    },
+    {
+      "id": "plant-2",
+      "type": "plant",
+      "name": "绿植",
+      "roomId": "living",
+      "roomGuessed": false,
+      "sizeMm": {
+        "w": 500,
+        "d": 500
+      }
+    },
+    {
+      "id": "bed-3",
+      "type": "bed",
+      "name": "双人床",
+      "roomId": "child",
+      "roomGuessed": false,
+      "sizeMm": {
+        "w": 1500,
+        "d": 2000
+      }
+    },
+    {
+      "id": "wardrobe-3",
+      "type": "wardrobe",
+      "name": "衣柜",
+      "roomId": "child",
+      "roomGuessed": false,
+      "sizeMm": {
+        "w": 2000,
+        "d": 600
+      }
+    },
+    {
+      "id": "desk-2",
+      "type": "desk",
+      "name": "书桌",
+      "roomId": "child",
+      "roomGuessed": false,
+      "sizeMm": {
+        "w": 1200,
+        "d": 600
+      }
+    },
+    {
+      "id": "chair-6",
+      "type": "chair",
+      "name": "椅子",
+      "roomId": "child",
+      "roomGuessed": false,
+      "sizeMm": {
+        "w": 450,
+        "d": 480
+      }
+    },
+    {
+      "id": "baycushion-2",
+      "type": "baycushion",
+      "name": "飘窗垫",
+      "roomId": "bay2",
+      "roomGuessed": false,
+      "sizeMm": {
+        "w": 520,
+        "d": 1575
+      }
+    },
+    {
+      "id": "roundtable-1",
+      "type": "roundtable",
+      "name": "茶桌",
+      "roomId": "balcony",
+      "roomGuessed": false,
+      "sizeMm": {
+        "w": 600,
+        "d": 600
+      }
+    },
+    {
+      "id": "armchair-2",
+      "type": "armchair",
+      "name": "休闲椅",
+      "roomId": "balcony",
+      "roomGuessed": false,
+      "sizeMm": {
+        "w": 750,
+        "d": 750
+      }
+    },
+    {
+      "id": "armchair-3",
+      "type": "armchair",
+      "name": "休闲椅",
+      "roomId": "balcony",
+      "roomGuessed": false,
+      "sizeMm": {
+        "w": 750,
+        "d": 750
+      }
+    },
+    {
+      "id": "plant-3",
+      "type": "plant",
+      "name": "绿植",
+      "roomId": "balcony",
+      "roomGuessed": false,
+      "sizeMm": {
+        "w": 500,
+        "d": 500
+      }
+    }
+  ],
+  "appliances": [
+    {
+      "id": "washer-1",
+      "type": "washer",
+      "name": "洗衣机",
+      "roomId": "laundry",
+      "roomGuessed": false,
+      "sizeMm": {
+        "w": 600,
+        "d": 600
+      }
+    },
+    {
+      "id": "stove-1",
+      "type": "stove",
+      "name": "燃气灶",
+      "roomId": "kitchen",
+      "roomGuessed": false,
+      "sizeMm": {
+        "w": 750,
+        "d": 450
+      }
+    },
+    {
+      "id": "fridge-1",
+      "type": "fridge",
+      "name": "冰箱",
+      "roomId": "dining",
+      "roomGuessed": false,
+      "sizeMm": {
+        "w": 700,
+        "d": 700
+      }
+    }
+  ],
+  "links": {
+    "homebox": {
+      "baseUrl": "http://127.0.0.1:7745",
+      "groupId": "0321083e-9b31-4e10-9264-35b7b39d7298",
+      "locations": {
+        "master": {
+          "entityId": "4ef6869f-474f-41c3-b0ae-2165ed69adc1",
+          "sent": {
+            "name": "主卧室",
+            "description": "来自装修设计 · 面积约 12.37 m²"
+          }
+        },
+        "mbath": {
+          "entityId": "8d7ef05e-e312-41fe-95e4-dfe030354571",
+          "sent": {
+            "name": "主卫浴",
+            "description": "来自装修设计 · 面积约 3.2 m²"
+          }
+        },
+        "kid": {
+          "entityId": "65c9febf-fed1-4cd8-a97e-bd5953f92a29",
+          "sent": {
+            "name": "小孩房",
+            "description": "来自装修设计 · 面积约 9.3 m²"
+          }
+        },
+        "gbath": {
+          "entityId": "b0282b6d-7f2c-4586-b672-9e59e6cfaf78",
+          "sent": {
+            "name": "客卫浴",
+            "description": "来自装修设计 · 面积约 2.89 m²"
+          }
+        },
+        "laundry": {
+          "entityId": "575710d6-0eb7-4a41-80a4-7de093552b13",
+          "sent": {
+            "name": "洗衣阳台",
+            "description": "来自装修设计 · 面积约 2.92 m²"
+          }
+        },
+        "child": {
+          "entityId": "c4e49090-6b82-440f-9f33-f9cb95ba3739",
+          "sent": {
+            "name": "子女房",
+            "description": "来自装修设计 · 面积约 10.89 m²"
+          }
+        },
+        "kitchen": {
+          "entityId": "ee8ef1c5-15ff-4689-af8d-cc5851edc582",
+          "sent": {
+            "name": "厨房",
+            "description": "来自装修设计 · 面积约 6.04 m²"
+          }
+        },
+        "dining": {
+          "entityId": "3d4f9f87-27d7-4271-8cc5-779a48d1b0a4",
+          "sent": {
+            "name": "餐厅",
+            "description": "来自装修设计 · 面积约 7.03 m²"
+          }
+        },
+        "hall": {
+          "entityId": "70e21ea9-7f11-4178-89e4-011bfe7f3271",
+          "sent": {
+            "name": "过道",
+            "description": "来自装修设计 · 面积约 5.71 m²"
+          }
+        },
+        "living": {
+          "entityId": "f14a0d76-73da-4500-9a32-f39b52de29aa",
+          "sent": {
+            "name": "客厅",
+            "description": "来自装修设计 · 面积约 21.53 m²"
+          }
+        },
+        "balcony": {
+          "entityId": "4c9b3220-efa4-467d-a547-d590583ed326",
+          "sent": {
+            "name": "休闲阳台",
+            "description": "来自装修设计 · 面积约 5.29 m²"
+          }
+        },
+        "bay1": {
+          "entityId": "6ae34494-9cb9-4eb8-a4cf-61d38a604556",
+          "sent": {
+            "name": "主卧飘窗",
+            "description": "来自装修设计 · 面积约 1.41 m²（不计入面积）"
+          }
+        },
+        "bay2": {
+          "entityId": "0f8f495d-55c1-4219-bb56-197cc7f672bb",
+          "sent": {
+            "name": "子女房飘窗",
+            "description": "来自装修设计 · 面积约 1.17 m²（不计入面积）"
+          }
+        }
+      },
+      "items": {
+        "bed-1": {
+          "entityId": "64c820f6-9df9-41b1-be54-f3843b0ff168",
+          "sent": {
+            "name": "双人床",
+            "description": "来自装修设计 · 尺寸 1800×2000 mm",
+            "parentId": "4ef6869f-474f-41c3-b0ae-2165ed69adc1"
+          }
+        },
+        "nightstand-1": {
+          "entityId": "e5744a78-9ca2-44b2-a8ef-42ebea3daa7e",
+          "sent": {
+            "name": "床头柜",
+            "description": "来自装修设计 · 尺寸 450×400 mm",
+            "parentId": "4ef6869f-474f-41c3-b0ae-2165ed69adc1"
+          }
+        },
+        "nightstand-2": {
+          "entityId": "f81bb747-b7d3-4cb9-9aa7-2bedb9b4bde7",
+          "sent": {
+            "name": "床头柜",
+            "description": "来自装修设计 · 尺寸 450×400 mm",
+            "parentId": "4ef6869f-474f-41c3-b0ae-2165ed69adc1"
+          }
+        },
+        "wardrobe-1": {
+          "entityId": "06ad5280-1e5b-47fc-9951-df84670b3f3d",
+          "sent": {
+            "name": "衣柜",
+            "description": "来自装修设计 · 尺寸 2400×600 mm",
+            "parentId": "4ef6869f-474f-41c3-b0ae-2165ed69adc1"
+          }
+        },
+        "baycushion-1": {
+          "entityId": "0cb46c6b-675a-4a09-88d1-71c4f53d0e1b",
+          "sent": {
+            "name": "飘窗垫",
+            "description": "来自装修设计 · 尺寸 520×1800 mm",
+            "parentId": "6ae34494-9cb9-4eb8-a4cf-61d38a604556"
+          }
+        },
+        "shower-1": {
+          "entityId": "01558b6b-bf14-4bc2-ad98-c53b93dd5ada",
+          "sent": {
+            "name": "淋浴房",
+            "description": "来自装修设计 · 尺寸 900×900 mm",
+            "parentId": "8d7ef05e-e312-41fe-95e4-dfe030354571"
+          }
+        },
+        "toilet-1": {
+          "entityId": "34fcc75b-c876-48e0-b7a4-a306b7323f34",
+          "sent": {
+            "name": "马桶",
+            "description": "来自装修设计 · 尺寸 400×700 mm",
+            "parentId": "8d7ef05e-e312-41fe-95e4-dfe030354571"
+          }
+        },
+        "vanity-1": {
+          "entityId": "d96870a2-15c8-47c1-be51-c467bf6ae30e",
+          "sent": {
+            "name": "浴室柜",
+            "description": "来自装修设计 · 尺寸 800×500 mm",
+            "parentId": "8d7ef05e-e312-41fe-95e4-dfe030354571"
+          }
+        },
+        "bed-2": {
+          "entityId": "e0ae1dde-ad45-49a8-a1d0-b1d7c453cec3",
+          "sent": {
+            "name": "单人床",
+            "description": "来自装修设计 · 尺寸 1200×2000 mm",
+            "parentId": "65c9febf-fed1-4cd8-a97e-bd5953f92a29"
+          }
+        },
+        "desk-1": {
+          "entityId": "6d0d64aa-2348-44ca-bdec-11340ad7546f",
+          "sent": {
+            "name": "书桌",
+            "description": "来自装修设计 · 尺寸 1200×600 mm",
+            "parentId": "65c9febf-fed1-4cd8-a97e-bd5953f92a29"
+          }
+        },
+        "chair-1": {
+          "entityId": "47c5f69b-79c1-446d-a7d4-cdb346a14e7a",
+          "sent": {
+            "name": "椅子",
+            "description": "来自装修设计 · 尺寸 450×480 mm",
+            "parentId": "65c9febf-fed1-4cd8-a97e-bd5953f92a29"
+          }
+        },
+        "wardrobe-2": {
+          "entityId": "a099d8df-5ae8-41d3-bb7a-e680656913bf",
+          "sent": {
+            "name": "衣柜",
+            "description": "来自装修设计 · 尺寸 1600×600 mm",
+            "parentId": "65c9febf-fed1-4cd8-a97e-bd5953f92a29"
+          }
+        },
+        "bookshelf-1": {
+          "entityId": "c120f1e6-3621-479e-aa4c-1ce72cc8fe04",
+          "sent": {
+            "name": "书架",
+            "description": "来自装修设计 · 尺寸 800×300 mm",
+            "parentId": "65c9febf-fed1-4cd8-a97e-bd5953f92a29"
+          }
+        },
+        "shower-2": {
+          "entityId": "2b549cdd-041d-4e7a-9430-d7ac608b3e9e",
+          "sent": {
+            "name": "淋浴区",
+            "description": "来自装修设计 · 尺寸 900×1340 mm",
+            "parentId": "b0282b6d-7f2c-4586-b672-9e59e6cfaf78"
+          }
+        },
+        "toilet-2": {
+          "entityId": "31929cb5-231e-4484-9363-a7344266c468",
+          "sent": {
+            "name": "马桶",
+            "description": "来自装修设计 · 尺寸 400×700 mm",
+            "parentId": "b0282b6d-7f2c-4586-b672-9e59e6cfaf78"
+          }
+        },
+        "vanity-2": {
+          "entityId": "988231e5-c898-42e4-80ca-73e328f78d3c",
+          "sent": {
+            "name": "浴室柜",
+            "description": "来自装修设计 · 尺寸 700×480 mm",
+            "parentId": "b0282b6d-7f2c-4586-b672-9e59e6cfaf78"
+          }
+        },
+        "vanity-3": {
+          "entityId": "f29298ab-91b5-4c9d-876b-6099e3d4109b",
+          "sent": {
+            "name": "洗衣池",
+            "description": "来自装修设计 · 尺寸 600×500 mm",
+            "parentId": "575710d6-0eb7-4a41-80a4-7de093552b13"
+          }
+        },
+        "counter-1": {
+          "entityId": "bac2b17d-5313-48e3-a24b-dafc29cd441a",
+          "sent": {
+            "name": "橱柜台面",
+            "description": "来自装修设计 · 尺寸 2770×600 mm",
+            "parentId": "ee8ef1c5-15ff-4689-af8d-cc5851edc582"
+          }
+        },
+        "counter-2": {
+          "entityId": "10eab318-67a7-4bf7-a4c8-d2abdfed7044",
+          "sent": {
+            "name": "橱柜台面",
+            "description": "来自装修设计 · 尺寸 1580×600 mm",
+            "parentId": "ee8ef1c5-15ff-4689-af8d-cc5851edc582"
+          }
+        },
+        "ksink-1": {
+          "entityId": "bd0b3c62-48e3-4ca7-b6b9-ae40b9324514",
+          "sent": {
+            "name": "水槽",
+            "description": "来自装修设计 · 尺寸 800×450 mm",
+            "parentId": "ee8ef1c5-15ff-4689-af8d-cc5851edc582"
+          }
+        },
+        "table-1": {
+          "entityId": "4fafa538-0aa8-4982-9bd3-7dd0888195db",
+          "sent": {
+            "name": "餐桌",
+            "description": "来自装修设计 · 尺寸 1400×800 mm",
+            "parentId": "3d4f9f87-27d7-4271-8cc5-779a48d1b0a4"
+          }
+        },
+        "chair-2": {
+          "entityId": "a0435ca2-ba69-4dac-af30-4c4630dfb98a",
+          "sent": {
+            "name": "餐椅",
+            "description": "来自装修设计 · 尺寸 450×480 mm",
+            "parentId": "3d4f9f87-27d7-4271-8cc5-779a48d1b0a4"
+          }
+        },
+        "chair-3": {
+          "entityId": "44517241-4085-48c4-b304-6b501b0e3a83",
+          "sent": {
+            "name": "餐椅",
+            "description": "来自装修设计 · 尺寸 450×480 mm",
+            "parentId": "3d4f9f87-27d7-4271-8cc5-779a48d1b0a4"
+          }
+        },
+        "chair-4": {
+          "entityId": "9710dc58-f35e-47d1-9d80-1a396090026f",
+          "sent": {
+            "name": "餐椅",
+            "description": "来自装修设计 · 尺寸 450×480 mm",
+            "parentId": "3d4f9f87-27d7-4271-8cc5-779a48d1b0a4"
+          }
+        },
+        "chair-5": {
+          "entityId": "49dda603-4c55-4f73-9d5c-024cc35efa7e",
+          "sent": {
+            "name": "餐椅",
+            "description": "来自装修设计 · 尺寸 450×480 mm",
+            "parentId": "3d4f9f87-27d7-4271-8cc5-779a48d1b0a4"
+          }
+        },
+        "cabinet-1": {
+          "entityId": "9f65e2ce-b51b-47d2-b9ce-de34e423881a",
+          "sent": {
+            "name": "餐边柜",
+            "description": "来自装修设计 · 尺寸 1600×350 mm",
+            "parentId": "3d4f9f87-27d7-4271-8cc5-779a48d1b0a4"
+          }
+        },
+        "rug-1": {
+          "entityId": "5a814c6c-3913-4e9e-85d2-d58337ebad9e",
+          "sent": {
+            "name": "地毯",
+            "description": "来自装修设计 · 尺寸 2600×1800 mm",
+            "parentId": "f14a0d76-73da-4500-9a32-f39b52de29aa"
+          }
+        },
+        "tvstand-1": {
+          "entityId": "3ecaa9fb-bc88-4d22-8577-b20817ce7816",
+          "sent": {
+            "name": "电视柜",
+            "description": "来自装修设计 · 尺寸 2400×400 mm",
+            "parentId": "f14a0d76-73da-4500-9a32-f39b52de29aa"
+          }
+        },
+        "sofa-1": {
+          "entityId": "f8d609b6-66c5-453e-8142-d7829f15489a",
+          "sent": {
+            "name": "三人沙发",
+            "description": "来自装修设计 · 尺寸 3000×900 mm",
+            "parentId": "f14a0d76-73da-4500-9a32-f39b52de29aa"
+          }
+        },
+        "coffeetable-1": {
+          "entityId": "ecbb9319-2c57-4a03-bb6f-e2befca413b5",
+          "sent": {
+            "name": "茶几",
+            "description": "来自装修设计 · 尺寸 1300×650 mm",
+            "parentId": "f14a0d76-73da-4500-9a32-f39b52de29aa"
+          }
+        },
+        "armchair-1": {
+          "entityId": "5028a0d9-8f88-431c-b19c-53f5a4c91d4b",
+          "sent": {
+            "name": "单人沙发",
+            "description": "来自装修设计 · 尺寸 850×850 mm",
+            "parentId": "f14a0d76-73da-4500-9a32-f39b52de29aa"
+          }
+        },
+        "shoecab-1": {
+          "entityId": "3a7d1727-2073-4b24-bcc0-77f15f7d9260",
+          "sent": {
+            "name": "鞋柜",
+            "description": "来自装修设计 · 尺寸 1000×350 mm",
+            "parentId": "f14a0d76-73da-4500-9a32-f39b52de29aa"
+          }
+        },
+        "plant-1": {
+          "entityId": "ff34d236-178b-4cec-a239-c9a6625e9bbe",
+          "sent": {
+            "name": "绿植",
+            "description": "来自装修设计 · 尺寸 500×500 mm",
+            "parentId": "f14a0d76-73da-4500-9a32-f39b52de29aa"
+          }
+        },
+        "plant-2": {
+          "entityId": "045852ae-581c-4c86-b086-44fa4b74b6e1",
+          "sent": {
+            "name": "绿植",
+            "description": "来自装修设计 · 尺寸 500×500 mm",
+            "parentId": "f14a0d76-73da-4500-9a32-f39b52de29aa"
+          }
+        },
+        "bed-3": {
+          "entityId": "28c38fc2-ab97-4eb6-869b-efeb34ae6086",
+          "sent": {
+            "name": "双人床",
+            "description": "来自装修设计 · 尺寸 1500×2000 mm",
+            "parentId": "c4e49090-6b82-440f-9f33-f9cb95ba3739"
+          }
+        },
+        "wardrobe-3": {
+          "entityId": "9a32235a-c770-4abd-9774-d23c79dccfc5",
+          "sent": {
+            "name": "衣柜",
+            "description": "来自装修设计 · 尺寸 2000×600 mm",
+            "parentId": "c4e49090-6b82-440f-9f33-f9cb95ba3739"
+          }
+        },
+        "desk-2": {
+          "entityId": "daa00bca-6172-4523-8071-d7b20f7068ab",
+          "sent": {
+            "name": "书桌",
+            "description": "来自装修设计 · 尺寸 1200×600 mm",
+            "parentId": "c4e49090-6b82-440f-9f33-f9cb95ba3739"
+          }
+        },
+        "chair-6": {
+          "entityId": "007580a4-122b-47bf-bf1d-922c640c45b2",
+          "sent": {
+            "name": "椅子",
+            "description": "来自装修设计 · 尺寸 450×480 mm",
+            "parentId": "c4e49090-6b82-440f-9f33-f9cb95ba3739"
+          }
+        },
+        "baycushion-2": {
+          "entityId": "14989b64-58ac-448e-ad83-1c09e3b8a8ff",
+          "sent": {
+            "name": "飘窗垫",
+            "description": "来自装修设计 · 尺寸 520×1575 mm",
+            "parentId": "0f8f495d-55c1-4219-bb56-197cc7f672bb"
+          }
+        },
+        "roundtable-1": {
+          "entityId": "99ffc79e-7de3-4d64-ad79-347362159814",
+          "sent": {
+            "name": "茶桌",
+            "description": "来自装修设计 · 尺寸 600×600 mm",
+            "parentId": "4c9b3220-efa4-467d-a547-d590583ed326"
+          }
+        },
+        "armchair-2": {
+          "entityId": "128fc4fd-6f2b-4d63-9ecd-d7fc4e227a3b",
+          "sent": {
+            "name": "休闲椅",
+            "description": "来自装修设计 · 尺寸 750×750 mm",
+            "parentId": "4c9b3220-efa4-467d-a547-d590583ed326"
+          }
+        },
+        "armchair-3": {
+          "entityId": "3f9aa4a9-e8cb-4a2b-aa3a-89a69213c684",
+          "sent": {
+            "name": "休闲椅",
+            "description": "来自装修设计 · 尺寸 750×750 mm",
+            "parentId": "4c9b3220-efa4-467d-a547-d590583ed326"
+          }
+        },
+        "plant-3": {
+          "entityId": "a3f09aec-b022-4a2c-8e13-78ccf173b157",
+          "sent": {
+            "name": "绿植",
+            "description": "来自装修设计 · 尺寸 500×500 mm",
+            "parentId": "4c9b3220-efa4-467d-a547-d590583ed326"
+          }
+        }
+      },
+      "locationTypeId": "a0de2c6d-3bc9-4101-b011-9b2b492a10dd",
+      "syncedAt": "2026-11-05T15:57:55.044Z"
+    }
+  },
+  "updatedAt": "2026-11-05T15:57:54.442Z"
+}
