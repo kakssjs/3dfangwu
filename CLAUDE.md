@@ -1,6 +1,6 @@
 # Project rules for AI assistants
 
-AI home-design studio for JUNCTION CHINA 2026. These rules add to the user's global engineering standards.
+I Renovation, an AI renovation design and contractor-matching platform, for JUNCTION CHINA 2026. These rules add to the user's global engineering standards.
 
 1. Before any task, read `WORKFLOW.md` (the plan) and `CHANGES.md` (what has changed, what hasn't, what still needs changing).
 2. After every change, update `CHANGES.md` in the same session, following its section 6. Work isn't finished until it's logged there.

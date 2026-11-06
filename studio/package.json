@@ -2,7 +2,7 @@
   "name": "studio",
   "version": "0.1.0",
   "private": true,
-  "description": "Our own code for the one-stop housing platform: the home record (N9) and the connectors to the one-stop parts (N11 Homebox).",
+  "description": "Our own code for I Renovation, the renovation design and contractor-matching platform: the home record (N9) and the Homebox connector (N11).",
   "license": "UNLICENSED",
   "type": "module",
   "engines": {

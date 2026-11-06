@@ -79,7 +79,7 @@ test('rebuilding keeps the previous links and stage, as a copy', () => {
   assert.deepEqual(second.links, previous.links);
   second.links.homebox!.items['sofa-1'] = link('e2', '三人沙发');
   assert.equal(previous.links.homebox!.items['sofa-1'], undefined);
-  assert.equal(buildHomeRecord(sample, { id: 'h1', name: 'Home', previous, stage: 'move-in' }).stage, 'move-in');
+  assert.equal(buildHomeRecord(sample, { id: 'h1', name: 'Home', previous, stage: 'after-sales' }).stage, 'after-sales');
 });
 
 test('prices from the budget are attached to the matching items', () => {

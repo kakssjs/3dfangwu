@@ -30,14 +30,16 @@ export interface FloorplanInput {
   furniture: PlacedFurniture[];
 }
 
-export const STAGES = ['viewing', 'purchase', 'design', 'construction', 'move-in'] as const;
+export const STAGES = ['requirements', 'design', 'bidding', 'contract', 'construction', 'acceptance', 'after-sales'] as const;
 export type Stage = (typeof STAGES)[number];
 export const STAGE_LABELS: Record<Stage, string> = {
-  viewing: '看房',
-  purchase: '购房',
+  requirements: '需求',
   design: '设计',
+  bidding: '招标',
+  contract: '签约',
   construction: '施工',
-  'move-in': '入住',
+  acceptance: '验收',
+  'after-sales': '售后',
 };
 
 export interface HomeRoom {

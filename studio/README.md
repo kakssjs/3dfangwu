@@ -1,6 +1,6 @@
 # studio
 
-Our own code for the one-stop housing platform. So far:
+Our own code for I Renovation, the renovation design and contractor-matching platform. So far:
 
 - **Home record (N9):** one JSON file per customer home, built from floorplan-3d's rooms and furniture. Each piece of furniture is placed in the room that contains it; appliances are kept apart for micasa (N12).
 - **Homebox connector (N11):** gives each home its own Homebox household. Rooms become locations, furniture becomes items with price, and the customer gets a one-time sign-up link.

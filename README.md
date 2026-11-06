@@ -1,12 +1,12 @@
 # 3dfangwu
 
-A one-person AI home company, built for JUNCTION CHINA 2026 (Xiaomi MiMo track, "OPC · 一人公司"). One human, the boss, and a team of MiMo agents take each customer from a floor plan through viewing, purchase, design, construction and move-in, in Chinese and English.
+I Renovation: an AI renovation design and contractor-matching platform, run as a one-person company and built for JUNCTION CHINA 2026 (Xiaomi MiMo track, "OPC · 一人公司"). One human, the boss, and a team of MiMo agents turn a homeowner's floor plan into a design package, let verified contractors bid on it on one bid sheet, and follow the contract, the construction, the final acceptance and after-sales, in Chinese and English.
 
 Work in progress: the plan is written, the home record (N9) and the Homebox connector (N11) are built, and the rest is planned item by item in `CHANGES.md`.
 
 | Read | For |
 |---|---|
-| [WORKFLOW.md](WORKFLOW.md) | The plan: the business, the customer journey, the agent team, and the decisions the human made |
+| [WORKFLOW.md](WORKFLOW.md) | The plan: the business, the renovation journey and the contractors' side, the agent team, and the decisions the human made |
 | [CHANGES.md](CHANGES.md) | What has been built and how it was checked, and what is still to do |
 | [studio/README.md](studio/README.md) | Our code, and how to run and test it |
 | [CLAUDE.md](CLAUDE.md) | The rules the AI coding assistant follows in this repo |
@@ -27,7 +27,7 @@ git submodule update --init floorplan-3d roomGPT
 
 ## Not in this repo
 
-Keys (`studio/.env.local`), the programs we run and their data (`runtime/`), real customers' files, and the event's brief.
+Keys (`studio/.env.local`), the programs we run and their data (`runtime/`), real homeowners' and contractors' files, and the event's brief.
 
 ## License
 

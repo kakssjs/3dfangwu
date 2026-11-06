@@ -1,8 +1,9 @@
 node_modules/
 # Real keys and passwords (written by `npm run homebox -- setup`)
 .env.local
-# Real customers' files stay off GitHub (WORKFLOW.md section 5). Only the demo home is kept.
+# Real homeowners' and contractors' files stay off GitHub (WORKFLOW.md section 5). Only the demo home is kept.
 /customers/
+/contractors/
 /reports/
 /homes/*
 !/homes/demo/
