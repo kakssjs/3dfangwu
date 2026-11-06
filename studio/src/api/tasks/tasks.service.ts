@@ -5,7 +5,7 @@
 import { ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { and, asc, desc, eq, inArray, isNull, lte, or, type SQL } from 'drizzle-orm';
 import type { Db } from '../db/database.ts';
-import { tasks, type Task, type TaskLogEntry } from '../db/schema.ts';
+import { projects, users, tasks, type Task, type TaskLogEntry } from '../db/schema.ts';
 import type { Language, TaskOwner, TaskStatus } from '../domain.ts';
 import { DB } from '../tokens.ts';
 import type { CreateTaskDto, DecisionDto, TaskQueryDto } from './tasks.dto.ts';
@@ -23,6 +23,14 @@ export class TasksService {
   /** Creates a task and logs who asked for it. */
   async create(dto: CreateTaskDto, by: string): Promise<Task> {
     const now = new Date();
+    if (dto.projectId) {
+      const [found] = await this.db.select({ id: projects.id }).from(projects).where(eq(projects.id, dto.projectId)).limit(1);
+      if (!found) throw new NotFoundException('No such project');
+    }
+    if (dto.contractorId) {
+      const [found] = await this.db.select({ id: users.id }).from(users).where(eq(users.id, dto.contractorId)).limit(1);
+      if (!found) throw new NotFoundException('No such contractor');
+    }
     const [task] = await this.db
       .insert(tasks)
       .values({

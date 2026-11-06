@@ -6,7 +6,9 @@ import { APP_GUARD, NestFactory } from '@nestjs/core';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { AgentsModule } from './agents/agents.module.ts';
+import { buildDeepModel } from './agents/deep.ts';
 import { MimoClient, httpTransport } from './agents/mimo.ts';
+import type { BaseChatModel } from '@langchain/core/language_models/chat_models';
 import { AuthModule } from './auth/auth.module.ts';
 import type { StudioConfig } from './config.ts';
 import { ConsentModule } from './consent/consent.module.ts';
@@ -34,7 +36,7 @@ class CoreModule {
 
 @Module({})
 export class AppModule {
-  static register(config: StudioConfig, database: Database, rateLimits: boolean, mimo: MimoClient): DynamicModule {
+  static register(config: StudioConfig, database: Database, rateLimits: boolean, mimo: MimoClient, deepModel: BaseChatModel | null): DynamicModule {
     return {
       module: AppModule,
       imports: [
@@ -46,7 +48,7 @@ export class AppModule {
         ContractorsModule,
         MatchingModule,
         UploadsModule,
-        AgentsModule.register(mimo),
+        AgentsModule.register(mimo, deepModel),
       ],
       providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
     };
@@ -62,15 +64,18 @@ export interface AppOptions {
   rateLimits?: boolean;
   /** The agents' MiMo client. Default: the real API from the settings; the tests hand in a stub. */
   mimo?: MimoClient;
+  /** The chat model for Agent 1's deep agents (D24). Default: MiMo from the settings, or none. */
+  deepModel?: BaseChatModel | null;
 }
 
-export async function createApp({ config, database, logger, rateLimits = true, mimo }: AppOptions): Promise<NestExpressApplication> {
+export async function createApp({ config, database, logger, rateLimits = true, mimo, deepModel }: AppOptions): Promise<NestExpressApplication> {
   const app = await NestFactory.create<NestExpressApplication>(
     AppModule.register(
       config,
       database,
       rateLimits,
       mimo ?? new MimoClient(httpTransport({ apiKey: config.mimoApiKey, baseUrl: config.mimoBaseUrl, model: config.mimoModel })),
+      deepModel === undefined ? buildDeepModel(config) : deepModel,
     ),
     logger === false ? { logger: false } : {},
   );

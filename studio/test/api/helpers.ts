@@ -6,6 +6,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import type { AddressInfo } from 'node:net';
+import type { BaseChatModel } from '@langchain/core/language_models/chat_models';
 import { MimoClient, type MimoTransport } from '../../src/api/agents/mimo.ts';
 import { createApp } from '../../src/api/app.ts';
 import type { StudioConfig } from '../../src/api/config.ts';
@@ -38,7 +39,8 @@ export async function startApi({
   rateLimits = false,
   adminKey = randomBytes(24).toString('base64url'),
   mimo = noMimo,
-}: { rateLimits?: boolean; adminKey?: string; mimo?: MimoTransport } = {}): Promise<Api> {
+  deepModel = null,
+}: { rateLimits?: boolean; adminKey?: string; mimo?: MimoTransport; deepModel?: BaseChatModel | null } = {}): Promise<Api> {
   const database = await openDatabase();
   const filesDir = mkdtempSync(path.join(tmpdir(), 'studio-files-'));
   const config: StudioConfig = {
@@ -53,7 +55,7 @@ export async function startApi({
     mimoBaseUrl: '',
     mimoModel: 'MiMo-V2.6-Pro',
   };
-  const app = await createApp({ config, database, logger: false, rateLimits, mimo: new MimoClient(mimo) });
+  const app = await createApp({ config, database, logger: false, rateLimits, mimo: new MimoClient(mimo), deepModel });
   await app.listen(0, '127.0.0.1');
   const { port } = app.getHttpServer().address() as AddressInfo;
   const base = `http://127.0.0.1:${port}/api`;

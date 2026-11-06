@@ -9,14 +9,12 @@ import type { Db } from '../db/database.ts';
 import { tasks, type Task, type TaskUsage } from '../db/schema.ts';
 import { TasksService, entry } from '../tasks/tasks.service.ts';
 import { DB } from '../tokens.ts';
-import { loadAgent, type AgentDef } from './definitions.ts';
-import { MimoClient, MimoError, type MimoMessage, type MimoResponse } from './mimo.ts';
+import { DeepAgentService } from './deep.ts';
+import { loadAgent, brief, usesDeepAgents, type AgentDef } from './definitions.ts';
+import { BrokenOutput, MimoClient, MimoError, type MimoMessage, type MimoResponse } from './mimo.ts';
 import { ToolsService } from './tools.ts';
 
 const MAX_STEPS = 8;
-
-/** The answer held no content. The agent gets one more try with the reason attached. */
-class BrokenOutput extends Error {}
 
 @Injectable()
 export class RunnerService {
@@ -24,13 +22,15 @@ export class RunnerService {
   private readonly tasks: TasksService;
   private readonly tools: ToolsService;
   private readonly mimo: MimoClient;
+  private readonly deep: DeepAgentService;
   private running = false;
 
-  constructor(@Inject(DB) db: Db, tasks: TasksService, tools: ToolsService, @Inject(MimoClient) mimo: MimoClient) {
+  constructor(@Inject(DB) db: Db, tasks: TasksService, tools: ToolsService, @Inject(MimoClient) mimo: MimoClient, deep: DeepAgentService) {
     this.db = db;
     this.tasks = tasks;
     this.tools = tools;
     this.mimo = mimo;
+    this.deep = deep;
   }
 
   /** Runs every task that is due, one after the other. Called by the timer in main.ts and by you. */
@@ -91,6 +91,7 @@ export class RunnerService {
 
   /** One attempt: the agent's turns until it answers in words, with its tool calls in between. */
   private async attempt(task: Task, agent: AgentDef, usage: TaskUsage, note: string): Promise<string> {
+    if (usesDeepAgents(agent, task)) return this.deep.run(task, agent, usage, note);
     const messages: MimoMessage[] = [
       { role: 'system', content: agent.instructions },
       { role: 'user', content: brief(task, note) },
@@ -135,18 +136,4 @@ export class RunnerService {
     const result = fresh[0]?.result ?? { content };
     return this.tasks.patch(task.id, { status: 'done', result, usage }, entry(new Date(), task.to, 'finished'));
   }
-}
-
-/** What the agent is told about its task. */
-function brief(task: Task, note: string): string {
-  const lines = [
-    `Task: ${task.task}`,
-    `Expected: ${task.expected}`,
-    task.stage ? `Stage: ${task.stage}` : '',
-    task.projectId ? `Project id: ${task.projectId}` : '',
-    task.inputs.length ? `Inputs: ${task.inputs.join(', ')}` : '',
-    `Write in ${task.language === 'zh-CN' ? 'Chinese (简体中文)' : 'English'}.`,
-    note ? `Your previous answer was broken (${note}). Answer again, and use the tools to check what you need.` : '',
-  ];
-  return lines.filter(Boolean).join('\n');
 }

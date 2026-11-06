@@ -42,6 +42,9 @@ export type MimoTransport = (messages: MimoMessage[], tools: MimoToolSpec[]) => 
 /** MiMo is down, slow, out of credits, or answered something we can't read. The task waits. */
 export class MimoError extends Error {}
 
+/** The answer held no content, or none in time. The agent gets one more try with the reason attached. */
+export class BrokenOutput extends Error {}
+
 export class MimoClient {
   private readonly transport: MimoTransport;
 

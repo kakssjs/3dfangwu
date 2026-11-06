@@ -4,6 +4,7 @@
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { studioDir } from '../config.ts';
+import type { Task } from '../db/schema.ts';
 import type { TaskOwner } from '../domain.ts';
 
 export interface AgentDef {
@@ -43,4 +44,23 @@ export function loadAgent(id: TaskOwner): AgentDef {
     instructions: readFileSync(path.join(studioDir, 'agents', FILES[id]), 'utf8'),
     tools: AGENT_TOOLS[id],
   };
+}
+
+/** Agent 1's design work runs on Deep Agents JS (D24); everything else on the runner's own loop. */
+export function usesDeepAgents(agent: AgentDef, task: Pick<Task, 'stage'>): boolean {
+  return agent.id === 'agent-1' && task.stage === 'design';
+}
+
+/** What the agent is told about its task. */
+export function brief(task: Task, note: string): string {
+  const lines = [
+    `Task: ${task.task}`,
+    `Expected: ${task.expected}`,
+    task.stage ? `Stage: ${task.stage}` : '',
+    task.projectId ? `Project id: ${task.projectId}` : '',
+    task.inputs.length ? `Inputs: ${task.inputs.join(', ')}` : '',
+    `Write in ${task.language === 'zh-CN' ? 'Chinese (简体中文)' : 'English'}.`,
+    note ? `Your previous answer was broken (${note}). Answer again, and use the tools to check what you need.` : '',
+  ];
+  return lines.filter(Boolean).join('\n');
 }
