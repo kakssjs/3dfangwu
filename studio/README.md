@@ -2,6 +2,7 @@
 
 Our own code for I Renovation, the renovation design and contractor-matching platform. So far:
 
+- **API (N19, N22, N23):** one NestJS app (D20). Homeowners and contractors register; you verify the contractors; a homeowner publishes renovation requirements as a project; the verified contractors in the matching area bid; the homeowner filters the bids and picks one. PostgreSQL runs inside the app. Every route is in `WORKFLOW.md` section 6.4.
 - **Home record (N9):** one JSON file per customer home, built from floorplan-3d's rooms and furniture. Each piece of furniture is placed in the room that contains it; appliances are kept apart for micasa (N12).
 - **Homebox connector (N11):** gives each home its own Homebox household. Rooms become locations, furniture becomes items with price, and the customer gets a one-time sign-up link.
 
@@ -53,14 +54,56 @@ npm run homebox -- invite orders/demo/home.json
 
 To see a home on the website, sign in as the studio account, then switch to that home's household.
 
+## Run the API
+
+The API needs `npm install` (above) and nothing else: PostgreSQL runs inside it.
+
+The first time only: write the sign-in secret and your admin key to `.env.local`. It doesn't print them. Changing `STUDIO_JWT_SECRET` later signs everyone out:
+
+```bash
+npm run api -- setup
+```
+
+Start it at http://127.0.0.1:3100/api. Ctrl+C stops it. Its database is in `../runtime/studio-db/`, which isn't in git; set `STUDIO_DB_DIR` to use another folder:
+
+```bash
+npm run api
+```
+
+`STUDIO_API_HOST`, `STUDIO_API_PORT` and `STUDIO_SITE_URL` (the interface's address, used in the project and bid links) are optional: `.env.example` lists them.
+
+Every route is in `WORKFLOW.md` section 6.4, and `test/api/marketplace.test.ts` uses them in order. By hand, use curl in a bash shell (in PowerShell, use `curl.exe` and put the JSON in a file: `-d @body.json`).
+
+Register a homeowner. A contractor is the same with `"role":"contractor"`. The reply holds a token to send as `Authorization: Bearer <token>`:
+
+```bash
+curl -X POST http://127.0.0.1:3100/api/auth/register -H "content-type: application/json" -d '{"role":"homeowner","phone":"13800138000","password":"a long password","displayName":"Li","language":"zh-CN","acceptTerms":true}'
+```
+
+Your side: contractors wait at `pending` until you verify them. List the waiting ones, then decide on one with its `id` (`verified`, `rejected` or `suspended`; the contractor sees the note). Check the licence first (D17):
+
+```bash
+ADMIN_KEY=$(grep '^STUDIO_ADMIN_KEY=' .env.local | cut -d= -f2)
+curl -H "X-Admin-Key: $ADMIN_KEY" "http://127.0.0.1:3100/api/admin/contractors?status=pending"
+curl -X POST -H "X-Admin-Key: $ADMIN_KEY" -H "content-type: application/json" -d '{"decision":"verified","note":"Licence checked"}' http://127.0.0.1:3100/api/admin/contractors/<id>/review
+```
+
 ## Check it
 
 ```bash
 npm run typecheck
 ```
 
+`npm test` builds the API into `dist/` and runs every test. The API's tests start it on a free port with PostgreSQL in memory, so they need no setup:
+
 ```bash
 npm test
+```
+
+After changing the tables in `src/api/db/schema.ts`, write the migration (it is applied when the API starts), and commit it with the code:
+
+```bash
+npm run db:generate
 ```
 
 The live tests need Homebox running. They create a test household and delete it at the end:
@@ -75,8 +118,14 @@ npm run test:live
 |---|---|
 | `src/home-record.ts` | The home record: types, room areas, which room each item is in |
 | `src/homebox.ts` | Homebox API client and the sync |
-| `scripts/` | The `npm run` commands above |
+| `src/api/` | The NestJS API: `main.ts` (`npm run api`), `app.ts` (the app), `config.ts` (settings), `domain.ts` (shared words and rules), `validation.ts` (request checks), `db/` (tables and the database), and one folder per area: `auth/`, `contractors/`, `bidding/` |
+| `src/env-file.ts` | Writes keys to `.env.local`, for both setup commands |
+| `drizzle/`, `drizzle.config.ts` | The database's migrations, written by `npm run db:generate` |
+| `tsconfig.build.json` | How `npm run build` compiles the API into `dist/` (not in git) |
+| `test/api/` | The API's end-to-end tests |
+| `scripts/` | The Homebox and home record commands above |
 | `samples/floorplan-3d-sample.json` | floorplan-3d's sample apartment, read from its `index.html` without running it |
 | `orders/demo/home.json` | The demo home, linked to the Homebox on this PC |
-| `.env.local` | Homebox address, studio account and API key. Private: never share it |
+| `.env.local` | Homebox address, studio account and API key; the API's sign-in secret and your admin key. Private: never share it |
+| `../runtime/studio-db/` | The API's database (PostgreSQL run by PGlite). Not in git. One API per folder |
 | `../runtime/homebox/` | Homebox itself (v0.27.1), its data (`.data/`) and its API-key secret (`api-key-pepper.txt`). Changing that secret cancels every API key |

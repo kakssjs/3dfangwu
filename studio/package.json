@@ -2,22 +2,39 @@
   "name": "studio",
   "version": "0.1.0",
   "private": true,
-  "description": "Our own code for I Renovation, the renovation design and contractor-matching platform: the home record (N9) and the Homebox connector (N11).",
+  "description": "Our own code for I Renovation, the renovation design and contractor-matching platform: the NestJS API (N19), the home record (N9) and the Homebox connector (N11).",
   "license": "UNLICENSED",
   "type": "module",
   "engines": {
     "node": ">=24"
   },
   "scripts": {
-    "test": "node --disable-warning=ExperimentalWarning --test \"test/*.test.ts\"",
+    "test": "npm run build && node --disable-warning=ExperimentalWarning --test \"test/*.test.ts\" \"dist/test/api/*.test.js\"",
     "test:live": "node --disable-warning=ExperimentalWarning --test \"test/live/*.test.ts\"",
     "typecheck": "tsc -p .",
+    "build": "node -e \"require('fs').rmSync('dist', { recursive: true, force: true })\" && tsc -p tsconfig.build.json",
+    "api": "npm run build && node dist/src/api/main.js",
+    "db:generate": "drizzle-kit generate",
     "sample": "node --disable-warning=ExperimentalWarning scripts/extract-floorplan-sample.ts",
     "home": "node --disable-warning=ExperimentalWarning scripts/home.ts",
     "homebox": "node --disable-warning=ExperimentalWarning scripts/homebox.ts"
   },
   "devDependencies": {
     "@types/node": "24.19.2",
+    "drizzle-kit": "0.31.11",
     "typescript": "7.0.2"
+  },
+  "dependencies": {
+    "@electric-sql/pglite": "0.5.15",
+    "@nestjs/common": "12.3.3",
+    "@nestjs/core": "12.3.3",
+    "@nestjs/jwt": "12.0.3",
+    "@nestjs/platform-express": "12.3.3",
+    "@nestjs/throttler": "6.7.1",
+    "class-transformer": "0.5.1",
+    "class-validator": "0.15.1",
+    "drizzle-orm": "0.45.4",
+    "reflect-metadata": "0.2.2",
+    "rxjs": "7.8.2"
   }
 }

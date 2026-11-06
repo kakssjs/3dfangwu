@@ -2,18 +2,18 @@
 
 I Renovation: an AI renovation design and contractor-matching platform, run as a one-person company and built for JUNCTION CHINA 2026 (Xiaomi MiMo track, "OPC · 一人公司"). One human, the boss, and a team of MiMo agents turn a homeowner's floor plan into a design package, let verified contractors bid on it on one bid sheet, and follow the contract, the construction, the final acceptance and after-sales, in Chinese and English.
 
-Work in progress: the plan is written, the home record (N9) and the Homebox connector (N11) are built, and the rest is planned item by item in `CHANGES.md`.
+Work in progress: the plan is final, and the first parts are built and tested in `studio/`: a NestJS API where homeowners and contractors register, homeowners publish renovation requirements, verified contractors bid, and the homeowner filters the bids and picks one (N19, N22, N23); the home record (N9); and the Homebox connector (N11). The rest is planned item by item in `CHANGES.md`.
 
 | Read | For |
 |---|---|
-| [WORKFLOW.md](WORKFLOW.md) | The plan: the business, the renovation journey and the contractors' side, the agent team, and the decisions the human made |
+| [WORKFLOW.md](WORKFLOW.md) | The plan, to develop from: what the JUNCTION brief asks for, the business, the renovation journey and the contractors' side, the agent team, the platform and its API, what the interface needs, the build order, and the decisions the human made |
 | [CHANGES.md](CHANGES.md) | What has been built and how it was checked, and what is still to do |
 | [studio/README.md](studio/README.md) | Our code, and how to run and test it |
 | [CLAUDE.md](CLAUDE.md) | The rules the AI coding assistant follows in this repo |
 
 ## Get it
 
-Nine of the folders are other people's projects that we build on: `floorplan-3d`, `roomGPT`, `pascal-editor`, `mcp-for-blender`, `SpatialLM`, `twenty`, `homebox`, `micasa` and `home-assistant-core`. They're linked as git submodules at the commits recorded in `CHANGES.md` section 1, not copied, so each keeps its own history and license. `WORKFLOW.md` section 7 says what each one is for, and `CHANGES.md` section 4 gives its license.
+Nine of the folders are other people's projects that we build on: `floorplan-3d`, `roomGPT`, `pascal-editor`, `mcp-for-blender`, `SpatialLM`, `twenty`, `homebox`, `micasa` and `home-assistant-core` (no longer used: the smart home scene was dropped). They're linked as git submodules at the commits recorded in `CHANGES.md` section 1, not copied, so each keeps its own history and license. `WORKFLOW.md` section 7 says what each one is for, and `CHANGES.md` section 4 gives its license.
 
 Clone, then fetch only the parts you need:
 

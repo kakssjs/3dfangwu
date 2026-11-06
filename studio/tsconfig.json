@@ -10,7 +10,9 @@
     "allowImportingTsExtensions": true,
     "verbatimModuleSyntax": true,
     "erasableSyntaxOnly": true,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
     "skipLibCheck": true
   },
-  "include": ["src", "scripts", "test"]
+  "include": ["src", "scripts", "test", "drizzle.config.ts"]
 }

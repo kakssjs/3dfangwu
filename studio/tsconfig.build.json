@@ -1,0 +1,13 @@
+{
+  // The API uses NestJS decorators, which Node can't run straight from TypeScript, so it's
+  // compiled to dist/ first (`npm run build`). The scripts in scripts/ still run directly.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "rewriteRelativeImportExtensions": true,
+    "rootDir": ".",
+    "outDir": "dist",
+    "sourceMap": true
+  },
+  "include": ["src", "test/api"]
+}

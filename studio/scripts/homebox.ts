@@ -13,6 +13,7 @@ import { randomBytes } from 'node:crypto';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { parseArgs } from 'node:util';
+import { writeEnvFile } from '../src/env-file.ts';
 import type { HomeRecord } from '../src/home-record.ts';
 import { HomeboxClient, HomeboxError, inviteCustomer, syncHomeToHomebox } from '../src/homebox.ts';
 
@@ -43,24 +44,7 @@ async function isUp(): Promise<boolean> {
 
 /** Sets KEY=value lines in .env.local, keeping every other line as it was. */
 function writeEnv(values: Record<string, string>): void {
-  for (const [key, value] of Object.entries(values)) {
-    if (!/^[A-Za-z0-9_\-.:/@+=~]*$/.test(value)) throw new Error(`unexpected characters in the value for ${key}`);
-  }
-  const lines = existsSync(envFile)
-    ? readFileSync(envFile, 'utf8').split(/\r?\n/)
-    : ['# Written by `npm run homebox -- setup`. Holds real keys: keep it on this PC and never share it.'];
-  const pending = new Map(Object.entries(values));
-  const out = lines.map((line) => {
-    const key = /^\s*([A-Za-z0-9_]+)\s*=/.exec(line)?.[1];
-    if (key === undefined || !pending.has(key)) return line;
-    const value = pending.get(key)!;
-    pending.delete(key);
-    return `${key}=${value}`;
-  });
-  while (out.length > 0 && out[out.length - 1] === '') out.pop();
-  for (const [key, value] of pending) out.push(`${key}=${value}`);
-  writeFileSync(envFile, out.join('\n') + '\n', { encoding: 'utf8', mode: 0o600 });
-  Object.assign(process.env, values);
+  writeEnvFile(envFile, values, '# Written by `npm run homebox -- setup`. Holds real keys: keep it on this PC and never share it.');
 }
 
 function readHome(file: string): HomeRecord {
