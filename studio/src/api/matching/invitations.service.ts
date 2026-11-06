@@ -4,7 +4,7 @@ import type { AuthUser } from '../auth/auth.guard.ts';
 import type { StudioConfig } from '../config.ts';
 import { ContractorsService, publicProfile } from '../contractors/contractors.service.ts';
 import type { Db } from '../db/database.ts';
-import { contractorProfiles, invitations, projects, users, type Invitation } from '../db/schema.ts';
+import { contractorProfiles, invitations, projects, users, type Invitation, type Project } from '../db/schema.ts';
 import { INVITATION_DAYS, MAX_LIVE_INVITATIONS } from '../domain.ts';
 import { CONFIG, DB } from '../tokens.ts';
 import { refuseContactDetails, todayInChina } from '../validation.ts';
@@ -39,6 +39,36 @@ const CANNOT_ANSWER: Record<Exclude<InvitationState, 'invited'>, string> = {
   'not-selected': 'The homeowner has already decided on this project',
 };
 
+/**
+ * The shortlist for one project: verified teams that fit it, best fit first, each with a tier and
+ * the reasons (D23). Teams already invited to it are left out, and so are teams at capacity.
+ * Shared by `GET /projects/:id/matches` and Agent 2's `match_teams` tool.
+ */
+export async function shortlistFor(db: Db, project: Project, limit: number): Promise<MatchView[]> {
+  const alreadyInvited = db.select({ id: invitations.contractorId }).from(invitations).where(eq(invitations.projectId, project.id));
+  // The district and the kind of renovation are judged by `shortlist`, which holds the rules.
+  const teams = await db
+    .select()
+    .from(contractorProfiles)
+    .where(
+      and(
+        eq(contractorProfiles.status, 'verified'),
+        eq(contractorProfiles.city, project.city),
+        notInArray(contractorProfiles.userId, alreadyInvited),
+      ),
+    );
+  const open = await openInvitationCounts(
+    db,
+    teams.map((team) => team.userId),
+    new Date(),
+  );
+  return shortlist(project, teams, open, limit).map(({ team, fit }) => ({
+    contractor: publicProfile(team),
+    fit: fit.tier,
+    reasons: fit.reasons,
+  }));
+}
+
 @Injectable()
 export class InvitationsService {
   private readonly db: Db;
@@ -66,28 +96,7 @@ export class InvitationsService {
   async matches(owner: AuthUser, projectId: string, query: MatchesQueryDto): Promise<MatchView[]> {
     const project = await this.projects.requireOwn(owner, projectId);
     if (project.status !== 'open') throw new ConflictException(`This project is already ${project.status}`);
-    const alreadyInvited = this.db.select({ id: invitations.contractorId }).from(invitations).where(eq(invitations.projectId, projectId));
-    // The district and the kind of renovation are judged by `shortlist`, which holds the rules.
-    const teams = await this.db
-      .select()
-      .from(contractorProfiles)
-      .where(
-        and(
-          eq(contractorProfiles.status, 'verified'),
-          eq(contractorProfiles.city, project.city),
-          notInArray(contractorProfiles.userId, alreadyInvited),
-        ),
-      );
-    const open = await openInvitationCounts(
-      this.db,
-      teams.map((team) => team.userId),
-      new Date(),
-    );
-    return shortlist(project, teams, open, query.limit ?? DEFAULT_MATCHES).map(({ team, fit }) => ({
-      contractor: publicProfile(team),
-      fit: fit.tier,
-      reasons: fit.reasons,
-    }));
+    return shortlistFor(this.db, project, query.limit ?? DEFAULT_MATCHES);
   }
 
   /**

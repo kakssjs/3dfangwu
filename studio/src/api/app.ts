@@ -5,6 +5,8 @@ import { Module, ValidationPipe, type DynamicModule } from '@nestjs/common';
 import { APP_GUARD, NestFactory } from '@nestjs/core';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { AgentsModule } from './agents/agents.module.ts';
+import { MimoClient, httpTransport } from './agents/mimo.ts';
 import { AuthModule } from './auth/auth.module.ts';
 import type { StudioConfig } from './config.ts';
 import { ConsentModule } from './consent/consent.module.ts';
@@ -32,7 +34,7 @@ class CoreModule {
 
 @Module({})
 export class AppModule {
-  static register(config: StudioConfig, database: Database, rateLimits: boolean): DynamicModule {
+  static register(config: StudioConfig, database: Database, rateLimits: boolean, mimo: MimoClient): DynamicModule {
     return {
       module: AppModule,
       imports: [
@@ -44,6 +46,7 @@ export class AppModule {
         ContractorsModule,
         MatchingModule,
         UploadsModule,
+        AgentsModule.register(mimo),
       ],
       providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
     };
@@ -57,11 +60,18 @@ export interface AppOptions {
   logger?: false;
   /** false turns the rate limits off, for tests that register many accounts. */
   rateLimits?: boolean;
+  /** The agents' MiMo client. Default: the real API from the settings; the tests hand in a stub. */
+  mimo?: MimoClient;
 }
 
-export async function createApp({ config, database, logger, rateLimits = true }: AppOptions): Promise<NestExpressApplication> {
+export async function createApp({ config, database, logger, rateLimits = true, mimo }: AppOptions): Promise<NestExpressApplication> {
   const app = await NestFactory.create<NestExpressApplication>(
-    AppModule.register(config, database, rateLimits),
+    AppModule.register(
+      config,
+      database,
+      rateLimits,
+      mimo ?? new MimoClient(httpTransport({ apiKey: config.mimoApiKey, baseUrl: config.mimoBaseUrl, model: config.mimoModel })),
+    ),
     logger === false ? { logger: false } : {},
   );
   app.setGlobalPrefix('api');

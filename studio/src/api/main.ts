@@ -10,6 +10,7 @@ import 'reflect-metadata';
 import { randomBytes } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { writeEnvFile } from '../env-file.ts';
+import { RunnerService } from './agents/runner.ts';
 import { createApp } from './app.ts';
 import { envFile, loadConfig } from './config.ts';
 import { openDatabase } from './db/database.ts';
@@ -45,7 +46,15 @@ async function serve(): Promise<void> {
   }
   const running = app;
   console.log(`I Renovation API: http://${config.host}:${config.port}/api (database in ${config.dbDir})`);
+  // The runner (N3): due tasks once a minute, once MiMo is set. Without it the agents wait and the
+  // rest of the API runs; you can still run tasks by hand (POST /api/admin/runner/tick).
+  const timer =
+    config.mimoApiKey && config.mimoBaseUrl
+      ? setInterval(() => void running.get(RunnerService).tick().catch((e: unknown) => console.error('runner:', e)), 60_000)
+      : undefined;
+  if (!timer) console.log('MIMO_API_KEY or MIMO_BASE_URL is not set: the agents wait.');
   const stop = async () => {
+    clearInterval(timer);
     await running.close();
     await database.close();
   };

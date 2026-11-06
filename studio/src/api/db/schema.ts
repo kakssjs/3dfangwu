@@ -16,6 +16,7 @@ import {
   uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core';
+import { STAGES } from '../../home-record.ts';
 import {
   CONTRACTOR_KINDS,
   CONTRACTOR_STATUSES,
@@ -25,6 +26,8 @@ import {
   PROJECT_STATUSES,
   RENOVATION_TYPES,
   ROLES,
+  TASK_OWNERS,
+  TASK_STATUSES,
 } from '../domain.ts';
 
 export const roleEnum = pgEnum('role', ROLES);
@@ -33,6 +36,9 @@ export const contractorStatusEnum = pgEnum('contractor_status', CONTRACTOR_STATU
 export const renovationTypeEnum = pgEnum('renovation_type', RENOVATION_TYPES);
 export const projectStatusEnum = pgEnum('project_status', PROJECT_STATUSES);
 export const invitationStatusEnum = pgEnum('invitation_status', INVITATION_STATUSES);
+export const taskOwnerEnum = pgEnum('task_owner', TASK_OWNERS);
+export const taskStatusEnum = pgEnum('task_status', TASK_STATUSES);
+export const stageEnum = pgEnum('journey_stage', STAGES);
 
 export interface Qualification {
   /** For example 建筑装修装饰工程专业承包二级. */
@@ -206,8 +212,58 @@ export const uploads = pgTable(
   (t) => [index('uploads_by_owner').on(t.ownerId), index('uploads_by_project').on(t.projectId)],
 );
 
+/** One entry in a task's log: when it happened, who did it, what happened. */
+export interface TaskLogEntry {
+  at: string;
+  by: string;
+  event: string;
+}
+
+/** What a task's MiMo run cost (WORKFLOW.md section 6.5). */
+export interface TaskUsage {
+  inputTokens: number;
+  outputTokens: number;
+  images: number;
+}
+
+/**
+ * One task in the runner's queue (WORKFLOW.md section 6.5): every handoff between the two agents,
+ * you and the code is a row here, and these rows are also the run records (运行记录) the judges
+ * ask for. A task for you (to `you`) is a sign-off (★): it waits until you decide.
+ */
+export const tasks = pgTable(
+  'tasks',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    projectId: uuid('project_id').references(() => projects.id, { onDelete: 'cascade' }),
+    contractorId: uuid('contractor_id').references(() => users.id, { onDelete: 'set null' }),
+    /** One word for what the task is: 'layout', 'verification-sheet', 'follow-up'... */
+    task: text('task').notNull(),
+    stage: stageEnum('stage'),
+    /** `zh-CN` or `en`: the reader's language (D10). */
+    language: languageEnum('language').notNull().default('zh-CN'),
+    from: taskOwnerEnum('from').notNull(),
+    to: taskOwnerEnum('to').notNull(),
+    inputs: jsonb('inputs').$type<string[]>().notNull().default([]),
+    /** What a finished task should produce, in one line. */
+    expected: text('expected').notNull(),
+    status: taskStatusEnum('status').notNull().default('todo'),
+    /** When the task should start. The runner starts it when this date arrives (N3). */
+    due: timestamp('due', { withTimezone: true }),
+    attempts: integer('attempts').notNull().default(0),
+    usage: jsonb('usage').$type<TaskUsage>().notNull().default({ inputTokens: 0, outputTokens: 0, images: 0 }),
+    log: jsonb('log').$type<TaskLogEntry[]>().notNull().default([]),
+    /** What the task produced, until the deliverables table (N7) holds those. */
+    result: jsonb('result').$type<unknown>(),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [index('tasks_by_due').on(t.status, t.due), index('tasks_by_project').on(t.projectId)],
+);
+
 export type User = typeof users.$inferSelect;
 export type ContractorProfile = typeof contractorProfiles.$inferSelect;
 export type Project = typeof projects.$inferSelect;
 export type Invitation = typeof invitations.$inferSelect;
 export type Upload = typeof uploads.$inferSelect;
+export type Task = typeof tasks.$inferSelect;

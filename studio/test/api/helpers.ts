@@ -6,6 +6,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import type { AddressInfo } from 'node:net';
+import { MimoClient, type MimoTransport } from '../../src/api/agents/mimo.ts';
 import { createApp } from '../../src/api/app.ts';
 import type { StudioConfig } from '../../src/api/config.ts';
 import { openDatabase, type Db } from '../../src/api/db/database.ts';
@@ -28,7 +29,16 @@ export interface Api {
   close(): Promise<void>;
 }
 
-export async function startApi({ rateLimits = false, adminKey = randomBytes(24).toString('base64url') } = {}): Promise<Api> {
+/** Without a transport MiMo is "down": agent tasks wait, as they do on a PC without a key. */
+const noMimo: MimoTransport = async () => {
+  throw new Error('no MiMo in the tests');
+};
+
+export async function startApi({
+  rateLimits = false,
+  adminKey = randomBytes(24).toString('base64url'),
+  mimo = noMimo,
+}: { rateLimits?: boolean; adminKey?: string; mimo?: MimoTransport } = {}): Promise<Api> {
   const database = await openDatabase();
   const filesDir = mkdtempSync(path.join(tmpdir(), 'studio-files-'));
   const config: StudioConfig = {
@@ -39,8 +49,11 @@ export async function startApi({ rateLimits = false, adminKey = randomBytes(24).
     adminKey,
     dbDir: '',
     filesDir,
+    mimoApiKey: '',
+    mimoBaseUrl: '',
+    mimoModel: 'MiMo-V2.6-Pro',
   };
-  const app = await createApp({ config, database, logger: false, rateLimits });
+  const app = await createApp({ config, database, logger: false, rateLimits, mimo: new MimoClient(mimo) });
   await app.listen(0, '127.0.0.1');
   const { port } = app.getHttpServer().address() as AddressInfo;
   const base = `http://127.0.0.1:${port}/api`;

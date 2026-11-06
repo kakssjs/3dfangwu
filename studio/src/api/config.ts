@@ -26,6 +26,11 @@ export interface StudioConfig {
   dbDir: string;
   /** Where uploads are kept (N19). The tests point it at a folder of their own. */
   filesDir: string;
+  /** The MiMo API for the agents (N3). Empty: the agents wait, and everything else runs. */
+  mimoApiKey: string;
+  /** The MiMo endpoint, from the model access docs (模型接入文档). */
+  mimoBaseUrl: string;
+  mimoModel: string;
 }
 
 /** Reads the settings from the environment (`.env.local` is loaded first by `main.ts`). */
@@ -44,5 +49,8 @@ export function loadConfig(env: NodeJS.ProcessEnv): StudioConfig {
     adminKey,
     dbDir: env.STUDIO_DB_DIR || path.join(studioDir, '..', 'runtime', 'studio-db'),
     filesDir: env.STUDIO_FILES_DIR || path.join(studioDir, '..', 'runtime', 'studio-files'),
+    mimoApiKey: env.MIMO_API_KEY ?? '',
+    mimoBaseUrl: env.MIMO_BASE_URL ?? '',
+    mimoModel: env.MIMO_MODEL || 'MiMo-V2.6-Pro',
   };
 }

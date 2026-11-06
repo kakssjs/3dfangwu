@@ -54,6 +54,17 @@ export const MAX_LIVE_INVITATIONS = 3;
 /** Days a team has to answer an invitation before it lapses. */
 export const INVITATION_DAYS = 7;
 
+/**
+ * Who a task goes to in the runner's queue (WORKFLOW.md sections 5 and 6.5): the two agents, or
+ * you, for a sign-off (★). The runner itself and the code checks appear in a task's `from`.
+ */
+export const TASK_OWNERS = ['agent-1', 'agent-2', 'you'] as const;
+export type TaskOwner = (typeof TASK_OWNERS)[number];
+
+/** A task's life: waiting, running, finished, retried out, or waiting for you to decide. */
+export const TASK_STATUSES = ['todo', 'doing', 'done', 'failed', 'escalated'] as const;
+export type TaskStatus = (typeof TASK_STATUSES)[number];
+
 /** The privacy notice and terms people accept when they register (N18, D17). Both are still drafts. */
 export const TERMS_VERSION = 'draft-2026-11-06';
 
