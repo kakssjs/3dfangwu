@@ -4,6 +4,7 @@ import type { AuthUser } from '../auth/auth.guard.ts';
 import type { StudioConfig } from '../config.ts';
 import type { Db } from '../db/database.ts';
 import { contractorProfiles, invitations, projects, users, type Project } from '../db/schema.ts';
+import { requirePlace } from '../regions/place.ts';
 import { CONFIG, DB } from '../tokens.ts';
 import { refuseContactDetails, todayInChina } from '../validation.ts';
 import type { CreateProjectDto } from './matching.dto.ts';
@@ -27,16 +28,18 @@ export class ProjectsService {
   async create(owner: AuthUser, dto: CreateProjectDto): Promise<OwnerProjectView> {
     if (dto.budgetMinCny > dto.budgetMaxCny) throw new BadRequestException('budgetMinCny must not be more than budgetMaxCny');
     if (dto.desiredStart < todayInChina()) throw new BadRequestException('desiredStart must be today or later');
-    refuseContactDetails({ title: dto.title, layout: dto.layout, description: dto.description });
+    const city = requirePlace(dto.city, [dto.district]);
+    refuseContactDetails({ title: dto.title, layout: dto.layout, community: dto.community, description: dto.description });
     const [project] = await this.db
       .insert(projects)
       .values({
         ownerId: owner.id,
         title: dto.title,
-        city: dto.city,
+        city,
         district: dto.district,
         floorAreaM2: dto.floorAreaM2,
         layout: dto.layout ?? '',
+        community: dto.community ?? '',
         renovationType: dto.renovationType,
         style: dto.style ?? '',
         budgetMinCny: dto.budgetMinCny,

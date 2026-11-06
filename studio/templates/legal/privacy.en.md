@@ -18,6 +18,14 @@ Only to run the service: requirements, design, matching contractors, comparing q
 
 To do this work, the floor plans, photos, documents and project text you give us are sent to the Xiaomi MiMo API for our AI agents to work on. It is the only closed outside service we use (you have agreed to this). Please don't upload sensitive material unrelated to the renovation. Every AI-made image is labelled "AI-generated".
 
+## Your location
+
+The "use my location" button asks your browser for your position, and your browser asks you first. Only if you allow it, we send the coordinates to OpenStreetMap's public Nominatim service (open data, run by the OpenStreetMap Foundation outside our control) to find which city and district you are in. We use the answer to fill in the city and district, and we do not store or log the coordinates. If you would rather not, pick your city and district from the list by hand: nothing else changes.
+
+## The map
+
+When you look for your home's community on the map, your browser loads the map from Amap (高德地图, run by AutoNavi, outside our control), which sees your IP address and what the map needs to draw it. What you type in the search box and the points you click are sent to Amap through our server, which adds our access code so it never reaches your browser. We keep only the community name you choose, with your project, and only you can see it. You can skip the map and pick your city and district from the list.
+
 ## Who can see it
 
 - **Matched contractor teams:** see only a brief of the project inside your invitation (city, district, floor area, layout, renovation type, style, budget range, start date, description, and the confirmed design package if there is one) — never your name, contact or exact address. Only the team you pick gets your name and phone.

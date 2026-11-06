@@ -1,5 +1,7 @@
 import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { and, arrayContains, asc, desc, eq, type SQL } from 'drizzle-orm';
+import { requirePlace } from '../regions/place.ts';
+import { shortCity } from '../regions/regions.ts';
 import type { Db } from '../db/database.ts';
 import { contractorProfiles, users, type ContractorProfile, type PastProject, type Qualification } from '../db/schema.ts';
 import type { ContractorKind, ContractorStatus, DesignStyle, RenovationType } from '../domain.ts';
@@ -69,6 +71,7 @@ export class ContractorsService {
     if (dto.priceMinCnyPerM2 !== undefined && dto.priceMaxCnyPerM2 !== undefined && dto.priceMinCnyPerM2 > dto.priceMaxCnyPerM2) {
       throw new BadRequestException('priceMinCnyPerM2 must not be more than priceMaxCnyPerM2');
     }
+    const city = requirePlace(dto.city, dto.districts);
     const values = {
       companyName: dto.companyName,
       kind: dto.kind,
@@ -78,7 +81,7 @@ export class ContractorsService {
         ...(q.number ? { number: q.number } : {}),
         ...(q.validUntil ? { validUntil: q.validUntil } : {}),
       })),
-      city: dto.city,
+      city,
       districts: dto.districts,
       renovationTypes: dto.renovationTypes,
       styles: dto.styles ?? [],
@@ -117,7 +120,7 @@ export class ContractorsService {
   /** Verified contractors, for homeowners to browse. */
   async listVerified(query: ContractorSearchDto): Promise<PublicProfile[]> {
     const conditions: SQL[] = [eq(contractorProfiles.status, 'verified')];
-    if (query.city) conditions.push(eq(contractorProfiles.city, query.city));
+    if (query.city) conditions.push(eq(contractorProfiles.city, shortCity(query.city)));
     if (query.district) conditions.push(arrayContains(contractorProfiles.districts, [query.district]));
     if (query.renovationType) conditions.push(arrayContains(contractorProfiles.renovationTypes, [query.renovationType]));
     const rows = await this.db

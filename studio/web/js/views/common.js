@@ -3,6 +3,7 @@
 import { ApiError } from '../api.js';
 import { h } from '../dom.js';
 import { label, lang, t } from '../i18n.js';
+import { avatar, icon, skeletons } from '../ui.js';
 
 export const TYPES = ['new-home', 'old-home', 'partial'];
 export const STYLES = ['modern-minimalist', 'cream', 'natural-wood', 'new-chinese', 'nordic', 'modern-luxury', 'industrial', 'wabi-sabi'];
@@ -25,7 +26,7 @@ const KINDS = {
 };
 export const statusChip = (status) => chip(KINDS[status] ?? 'muted', label('status', status));
 
-export const loading = () => h('p', { class: 'muted' }, t('loading'));
+export const loading = () => skeletons(3);
 
 /** The interface's own text for each error (WORKFLOW.md 9.1); the server's detail follows for 400 and 409. */
 export function describe(error) {
@@ -35,8 +36,9 @@ export function describe(error) {
   const base = known.includes(error.status) ? t(`err.${error.status}`) : t('err.500');
   return [400, 409].includes(error.status) && error.message ? `${base} — ${error.message}` : base;
 }
-export const errorBox = (error) => h('div', { class: 'alert alert-error', role: 'alert' }, describe(error));
-export const okBox = (text) => h('div', { class: 'alert alert-ok', role: 'status' }, text);
+export const errorBox = (error) => h('div', { class: 'alert alert-error', role: 'alert' }, icon('alert'), h('span', {}, describe(error)));
+export const okBox = (text) => h('div', { class: 'alert alert-ok', role: 'status' }, icon('check'), h('span', {}, text));
+export const noteBox = (kind, text) => h('div', { class: `alert alert-${kind}` }, icon(kind === 'ok' ? 'check' : kind === 'info' ? 'info' : 'alert'), h('span', {}, text));
 
 /** Shows how many whole days or hours are left until `iso`. */
 export function timeLeft(iso) {
@@ -55,6 +57,8 @@ export function facts(pairs) {
   return dl;
 }
 
+export const sectionHead = (n, text) => h('div', { class: 'section-head' }, h('span', { class: 'num' }, n), h('h2', {}, text));
+
 // ---- form fields ----
 
 export const field = (text, control, hint) =>
@@ -67,7 +71,7 @@ export function input(name, options = {}) {
   return h('input', props);
 }
 export const textarea = (name, options = {}) =>
-  h('textarea', { name, rows: options.rows ?? 4, required: options.required, minlength: options.minlength, maxlength: options.maxlength }, options.value ?? '');
+  h('textarea', { name, rows: options.rows ?? 4, required: options.required, minlength: options.minlength, maxlength: options.maxlength, placeholder: options.placeholder }, options.value ?? '');
 export const select = (name, options, value, extra = {}) =>
   h('select', { name, value, required: extra.required }, options.map(([v, text]) => h('option', { value: v }, text)));
 export const checks = (name, options, values = []) =>
@@ -85,6 +89,7 @@ export function onSubmit(form, box, work) {
       await work(new FormData(form));
     } catch (error) {
       box.replaceChildren(errorBox(error));
+      box.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
     } finally {
       for (const b of buttons) b.disabled = false;
     }
@@ -102,10 +107,9 @@ export function profileCard(profile, extra = []) {
   return h(
     'div',
     {},
-    h('div', { class: 'card-head' }, h('h3', {}, profile.companyName), profile.verified === false ? null : chip('ok', t('verified'))),
+    h('div', { class: 'card-head' }, h('div', { class: 'who-line' }, avatar(profile.companyName), h('div', {}, h('h3', {}, profile.companyName), h('div', { class: 'small muted' }, `${label('kind', profile.kind)} · ${profile.city}`))), profile.verified === false ? null : chip('ok', t('verified'))),
     facts([
-      [t('f.kind'), label('kind', profile.kind)],
-      [t('f.city'), `${profile.city} · ${profile.districts.join('、')}`],
+      [t('f.districts'), profile.districts.join('、')],
       [t('f.types'), profile.renovationTypes.map((v) => label('type', v)).join('、')],
       [t('f.styles'), profile.styles.map((v) => label('style', v)).join('、') || null],
       [t('f.price'), band],
@@ -113,9 +117,7 @@ export function profileCard(profile, extra = []) {
       [t('f.team'), `${profile.teamSize}`],
       [t('f.licence'), profile.licenceNumber],
     ]),
-    profile.qualifications.length
-      ? h('p', { class: 'small' }, `${t('f.quals')}: `, profile.qualifications.map((q) => q.name).join('；'))
-      : null,
+    profile.qualifications.length ? h('p', { class: 'small' }, `${t('f.quals')}: `, profile.qualifications.map((q) => q.name).join('；')) : null,
     profile.description ? h('p', {}, profile.description) : null,
     profile.pastProjects.length
       ? h('details', {}, h('summary', {}, t('f.past', { n: profile.pastProjects.length })), h('ul', { class: 'plain' }, profile.pastProjects.map((p) => h('li', {}, [p.title, p.district, p.year].filter(Boolean).join(' · ')))))
@@ -124,12 +126,21 @@ export function profileCard(profile, extra = []) {
   );
 }
 
+/** Why a team fits, one line per factor. */
+export function reasonList(reasons) {
+  const marks = { good: 'check', partial: 'alert', none: 'x', unknown: 'info' };
+  return h(
+    'div',
+    {},
+    reasons.map((r) => h('div', { class: `reason reason-${r.result}` }, icon(marks[r.result] ?? 'info'), h('div', {}, h('strong', {}, `${label('factor', r.factor)} · ${label('result', r.result)}`), h('div', { class: 'small muted' }, r.note)))),
+  );
+}
+
 export function quoteBlock(quote) {
   if (!quote) return null;
   return h(
     'div',
     { class: 'quote' },
-    h('strong', {}, `${t('q.total')}: ${cny(quote.priceCny)}`),
     facts([
       [t('q.labour'), quote.labourCny === null ? null : cny(quote.labourCny)],
       [t('q.materials'), quote.materialsCny === null ? null : cny(quote.materialsCny)],

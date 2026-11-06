@@ -6,6 +6,7 @@ import { ApiError, api, query, session } from '../api.js';
 import { h } from '../dom.js';
 import { label, t } from '../i18n.js';
 import { go } from '../router.js';
+import { fileGrid } from '../ui.js';
 import { day, errorBox, facts, field, input, loading, okBox, onSubmit, select, statusChip, str, textarea } from './common.js';
 
 export async function admin(ctx) {
@@ -58,6 +59,10 @@ async function contractorsView(ctx) {
 
 function reviewCard(p) {
   const box = h('div');
+  const docs = h('div');
+  api('GET', `/admin/accounts/${p.id}/uploads`, { admin: true })
+    .then((files) => docs.replaceChildren(fileGrid(files, { admin: true })))
+    .catch(() => {});
   const decide = (decision) => async (event) => {
     const form = event.target.closest('form');
     const note = str(new FormData(form).get('note'));
@@ -84,6 +89,8 @@ function reviewCard(p) {
       [t('f.past', { n: p.pastProjects.length }), p.pastProjects.map((x) => [x.title, x.district, x.year].filter(Boolean).join(' ')).join('；')],
       [t('app.note'), p.reviewNote],
     ]),
+    h('h4', {}, t('adm.docs')),
+    docs,
     h('form', { onsubmit: (e) => e.preventDefault() }, field(t('adm.note'), textarea('note', { rows: 2, maxlength: 500 }), t('adm.note.hint')), box,
       h('div', { class: 'actions' },
         h('button', { type: 'button', class: 'primary', onclick: decide('verified') }, t('adm.verify')),

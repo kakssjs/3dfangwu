@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
-import { UploadsController } from './uploads.controller.ts';
+import { AdminUploadsController, UploadsController } from './uploads.controller.ts';
 import { UploadsService } from './uploads.service.ts';
 
-@Module({ controllers: [UploadsController], providers: [UploadsService] })
+@Module({ controllers: [UploadsController, AdminUploadsController], providers: [UploadsService] })
 export class UploadsModule {}

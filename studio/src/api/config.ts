@@ -22,6 +22,14 @@ export interface StudioConfig {
   jwtSecret: string;
   /** Your key for `/api/admin`. Empty turns those routes off. */
   adminKey: string;
+  /** Amap Web (JS API) key for the map (D26). Public by design: the page loads the map with it. Empty: no map. */
+  amapKey: string;
+  /** Its security code. Server-only: the map proxy adds it. Empty: the map shows, search is off. */
+  amapSecurityCode: string;
+  /** A PostgreSQL server to use instead of the one inside the app (D20): `postgres://user:password@host:5432/name`. */
+  databaseUrl: string;
+  /** Connections to that server at most. */
+  databasePoolMax: number;
   /** The database folder. Empty keeps the database in memory, as the tests do. */
   dbDir: string;
   /** Where uploads are kept (N19). The tests point it at a folder of their own. */
@@ -47,6 +55,10 @@ export function loadConfig(env: NodeJS.ProcessEnv): StudioConfig {
     siteUrl: (env.STUDIO_SITE_URL || `http://127.0.0.1:${port}`).replace(/\/+$/, ''),
     jwtSecret,
     adminKey,
+    amapKey: env.AMAP_KEY ?? '',
+    amapSecurityCode: env.AMAP_SECURITY_CODE ?? '',
+    databaseUrl: env.DATABASE_URL ?? '',
+    databasePoolMax: Number(env.STUDIO_DB_POOL_MAX) || 10,
     dbDir: env.STUDIO_DB_DIR || path.join(studioDir, '..', 'runtime', 'studio-db'),
     filesDir: env.STUDIO_FILES_DIR || path.join(studioDir, '..', 'runtime', 'studio-files'),
     mimoApiKey: env.MIMO_API_KEY ?? '',

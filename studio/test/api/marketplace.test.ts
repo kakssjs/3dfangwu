@@ -87,11 +87,24 @@ function requirements(overrides: Record<string, unknown> = {}) {
 }
 
 /** Matching looks at teams by city, so each test works in a city of its own and sees only its own teams. */
-const DISTRICT = '中心区';
+/** Two real districts of each city the tests use: a team works in both, or just the second. */
+const DISTRICTS: Record<string, [string, string]> = {
+  上海: ['浦东新区', '闵行区'],
+  苏州: ['姑苏区', '吴中区'],
+  无锡: ['梁溪区', '滨湖区'],
+  杭州: ['西湖区', '拱墅区'],
+  长沙: ['岳麓区', '芙蓉区'],
+  南京: ['玄武区', '秦淮区'],
+  成都: ['锦江区', '青羊区'],
+  武汉: ['武昌区', '江岸区'],
+  宁波: ['海曙区', '江北区'],
+};
+const districtA = (city: string) => DISTRICTS[city]![0];
+const districtB = (city: string) => DISTRICTS[city]![1];
 
-/** A verified team in `city`, working in DISTRICT. */
+/** A verified team in `city`, working in both of its districts. */
 function team(city: string, name: string, overrides: Record<string, unknown> = {}) {
-  return verifiedContractor(name, { companyName: name, city, districts: [DISTRICT, '开发区'], ...overrides });
+  return verifiedContractor(name, { companyName: name, city, districts: DISTRICTS[city], ...overrides });
 }
 
 /** `count` past projects listed in `district`. */
@@ -99,9 +112,9 @@ function pastIn(district: string, count: number) {
   return Array.from({ length: count }, (_, i) => ({ title: `${district}项目${i + 1}`, district, year: 2025 }));
 }
 
-/** A homeowner's requirements for a home in `city`, in DISTRICT. */
+/** A homeowner's requirements for a home in `city`, in its first district. */
 function projectIn(city: string, overrides: Record<string, unknown> = {}) {
-  return requirements({ city, district: DISTRICT, ...overrides });
+  return requirements({ city, district: districtA(city), ...overrides });
 }
 
 function quote(overrides: Record<string, unknown> = {}) {
@@ -283,16 +296,16 @@ describe('matching, invitations and the pick', () => {
   test('a homeowner is matched to suitable teams, invites some, compares their sealed quotes and picks one', async () => {
     const city = '苏州';
     const homeowner = await register('homeowner', '孙女士');
-    const best = await team(city, '近邻装饰', { yearsInBusiness: 12, pastProjects: pastIn(DISTRICT, 3) });
+    const best = await team(city, '近邻装饰', { yearsInBusiness: 12, pastProjects: pastIn(districtA(city), 3) });
     const dear = await team(city, '高端装饰', { priceMinCnyPerM2: 5_000, priceMaxCnyPerM2: 8_000 });
     const quiet = await team(city, '低调装饰', { styles: [], priceMinCnyPerM2: undefined, priceMaxCnyPerM2: undefined, yearsInBusiness: 3 });
     // These can't be matched to the project: another district, another kind of work, another city,
     // not yet verified, suspended.
-    const otherDistrict = await team(city, '开发区装饰', { districts: ['开发区'] });
+    const otherDistrict = await team(city, '开发区装饰', { districts: [districtB(city)] });
     const otherWork = await team(city, '新房装饰', { renovationTypes: ['new-home'] });
     const otherCity = await team('无锡', '外地装饰');
     const waiting = await register('contractor', '待审装饰');
-    await api.call('PUT', '/contractors/me', { token: waiting.token, body: application({ city, districts: [DISTRICT] }) });
+    await api.call('PUT', '/contractors/me', { token: waiting.token, body: application({ city, districts: [districtA(city)] }) });
     const stopped = await team(city, '停用装饰');
     await api.call('POST', `/admin/contractors/${stopped.id}/review`, { admin: api.adminKey, body: { decision: 'suspended' } });
 

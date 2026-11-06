@@ -124,6 +124,8 @@ export const projects = pgTable(
     floorAreaM2: doublePrecision('floor_area_m2').notNull(),
     /** For example 3室2厅2卫. */
     layout: text('layout').notNull().default(''),
+    /** The residential community the home is in, from the map search. Private to the owner (D7). */
+    community: text('community').notNull().default(''),
     renovationType: renovationTypeEnum('renovation_type').notNull(),
     style: text('style').notNull().default(''),
     budgetMinCny: integer('budget_min_cny').notNull(),

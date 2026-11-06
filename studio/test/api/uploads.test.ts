@@ -142,3 +142,39 @@ describe('refusing what is wrong', () => {
     assert.equal((await api.call('GET', `/uploads/${body.id}`)).status, 401);
   });
 });
+
+describe('listing and review', () => {
+  test('a sender lists only their own files, newest first, and can narrow to a project', async () => {
+    const mine = await register('contractor', '李师傅');
+    const other = await register('homeowner', '陈女士');
+    const send = (token: string, name: string) =>
+      api.call('POST', '/uploads', { token, body: { filename: name, contentType: 'image/jpeg', dataBase64: jpegWithGps().toString('base64') } });
+    assert.equal((await send(mine.token, 'licence.jpg')).status, 201);
+    assert.equal((await send(mine.token, 'site.jpg')).status, 201);
+    assert.equal((await send(other.token, 'plan.jpg')).status, 201);
+    const listed = await api.call('GET', '/uploads', { token: mine.token });
+    assert.equal(listed.status, 200);
+    assert.deepEqual(listed.body.map((u: { filename: string }) => u.filename), ['site.jpg', 'licence.jpg']);
+    assert.ok(listed.body.every((u: Record<string, unknown>) => !('dataBase64' in u)), 'a list never carries the bytes');
+    assert.equal((await api.call('GET', '/uploads?projectId=not-a-uuid', { token: mine.token })).status, 400);
+    assert.equal((await api.call('GET', '/uploads')).status, 401);
+  });
+
+  test('with the admin key you see the files an account sent, and open any of them; nobody else can', async () => {
+    const contractor = await register('contractor', '王工');
+    const sent = await api.call('POST', '/uploads', {
+      token: contractor.token,
+      body: { filename: '执照.png', contentType: 'image/png', dataBase64: pngWithSecretText().toString('base64') },
+    });
+    assert.equal(sent.status, 201);
+    const listed = await api.call('GET', `/admin/accounts/${contractor.id}/uploads`, { admin: api.adminKey });
+    assert.deepEqual(listed.body.map((u: { id: string }) => u.id), [sent.body.id]);
+    const opened = await api.call('GET', `/admin/uploads/${sent.body.id}`, { admin: api.adminKey });
+    assert.equal(opened.status, 200);
+    assert.equal(opened.body.contentType, 'image/png');
+    assert.ok(opened.body.dataBase64.length > 10);
+    assert.equal((await api.call('GET', `/admin/uploads/${sent.body.id}`, { token: contractor.token })).status, 401);
+    assert.equal((await api.call('GET', `/admin/accounts/${contractor.id}/uploads`)).status, 401);
+    assert.equal((await api.call('GET', '/admin/uploads/00000000-0000-4000-8000-000000000000', { admin: api.adminKey })).status, 404);
+  });
+});

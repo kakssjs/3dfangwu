@@ -6,6 +6,7 @@ import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
 import { after, before, describe, test } from 'node:test';
 import { chromium, type Browser, type BrowserContext, type Page } from 'playwright-core';
+import { pngWithSecretText } from './fixtures.ts';
 import { dateInChina, startApi, type Api } from './helpers.ts';
 
 const BROWSERS = [
@@ -21,7 +22,8 @@ const browserPath = process.env.STUDIO_BROWSER ?? BROWSERS.find((p) => existsSyn
 
 let api: Api;
 before(async () => {
-  api = await startApi();
+  // The location service is a stub: in the browser the position is faked, and "Shanghai, Huangpu" comes back.
+  api = await startApi({ geo: async () => ['黄浦区', '上海市', '中国'] });
 });
 after(async () => {
   await api.close();
@@ -125,8 +127,10 @@ describe('a renovation journey in a real browser', { skip: browserPath ? false :
     await contractor.waitForURL(/\/application$/);
     await contractor.locator('input[name=companyName]').fill('浦东匠心装饰');
     await contractor.locator('input[name=licenceNumber]').fill('91310115MA1K4A2B3C');
-    await contractor.locator('input[name=city]').fill('上海');
-    await contractor.locator('input[name=districts]').fill('浦东新区、闵行区');
+    await contractor.getByLabel('Province').selectOption('上海市');
+    await contractor.locator('select[name=city]').selectOption('上海');
+    await contractor.locator('input[name=districts][value=浦东新区]').check();
+    await contractor.locator('input[name=districts][value=闵行区]').check();
     await contractor.locator('input[name=renovationTypes][value=old-home]').check();
     await contractor.locator('input[name=styles][value=cream]').check();
     await contractor.locator('input[name=priceMinCnyPerM2]').fill('1500');
@@ -137,6 +141,9 @@ describe('a renovation journey in a real browser', { skip: browserPath ? false :
     await contractor.locator('[data-row=qual] input[name=name]').first().fill('建筑装修装饰工程专业承包二级');
     const past = contractor.locator('[data-row=past]');
     for (const [i, title] of ['联洋小区三室翻新', '古美路两室改造', '世纪公园旁老公房'].entries()) await past.nth(i).locator('input[name=title]').fill(title);
+    await contractor.locator('input[type=file]').setInputFiles({ name: 'licence.png', mimeType: 'image/png', buffer: pngWithSecretText() });
+    await contractor.getByText('licence.png uploaded').waitFor();
+    await contractor.locator('.file', { hasText: 'licence.png' }).waitFor();
     await fixed(contractor);
     await contractor.locator('button[type=submit]').click();
     await contractor.locator('.chip', { hasText: 'Pending review' }).waitFor();
@@ -151,6 +158,8 @@ describe('a renovation journey in a real browser', { skip: browserPath ? false :
     await page.locator('input[name=key]').fill(api.adminKey);
     await page.locator('button[type=submit]').click();
     await page.getByText('浦东匠心装饰').waitFor();
+    // The licence the contractor uploaded is there to check.
+    await page.locator('.file', { hasText: 'licence.png' }).waitFor();
     await page.locator('textarea[name=note]').fill('Licence checked.');
     await page.getByRole('button', { name: 'Verify', exact: true }).click();
     await page.getByText('Nothing here.').waitFor();
@@ -164,11 +173,17 @@ describe('a renovation journey in a real browser', { skip: browserPath ? false :
     homeowner = (await person()).page;
     await register(homeowner, 'homeowner', '13900139002', 'Ms Wang');
     await homeowner.waitForURL(/\/projects$/);
-    await homeowner.getByText('No projects yet').waitFor();
+    await homeowner.getByRole('heading', { name: 'No projects yet' }).waitFor();
     await homeowner.getByRole('link', { name: 'New project' }).first().click();
     await homeowner.locator('input[name=title]').fill('Old two-bedroom flat');
-    await homeowner.locator('input[name=city]').fill('上海');
-    await homeowner.locator('input[name=district]').fill('浦东新区');
+    // "Use my location": the browser's position (faked here) becomes a real city and district.
+    await homeowner.context().grantPermissions(['geolocation']);
+    await homeowner.context().setGeolocation({ latitude: 31.2304, longitude: 121.4737 });
+    await homeowner.getByRole('button', { name: 'Use my location' }).click();
+    await homeowner.getByText('Filled in: 上海 · 黄浦区').waitFor();
+    assert.equal(await homeowner.locator('select[name=city]').inputValue(), '上海');
+    assert.equal(await homeowner.locator('select[name=district]').inputValue(), '黄浦区');
+    await homeowner.locator('select[name=district]').selectOption('浦东新区');
     await homeowner.locator('input[name=floorAreaM2]').fill('89');
     await homeowner.locator('input[name=layout]').fill('2室1厅1卫');
     await homeowner.locator('select[name=renovationType]').selectOption('old-home');
@@ -182,6 +197,9 @@ describe('a renovation journey in a real browser', { skip: browserPath ? false :
     await homeowner.waitForURL(/\/projects\/[0-9a-f-]{36}$/);
     projectUrl = homeowner.url();
     await homeowner.getByRole('heading', { name: 'Old two-bedroom flat' }).waitFor();
+    // A floor plan can be kept with the project.
+    await homeowner.locator('input[type=file]').setInputFiles({ name: 'plan.png', mimeType: 'image/png', buffer: pngWithSecretText() });
+    await homeowner.getByText('plan.png uploaded').waitFor();
     const card = homeowner.locator('.card', { hasText: '浦东匠心装饰' }).filter({ has: homeowner.getByRole('button', { name: 'Invite to quote' }) });
     await card.waitFor();
     await card.locator('.chip', { hasText: 'Strong fit' }).waitFor();
@@ -212,12 +230,12 @@ describe('a renovation journey in a real browser', { skip: browserPath ? false :
 
   test('the homeowner sees the quote, picks it, and only then do the two get each other’s contact', async () => {
     await homeowner.goto(projectUrl);
-    const quoted = homeowner.locator('.card', { hasText: 'Total: ¥180,000' });
+    const quoted = homeowner.locator('.quote-card', { hasText: '¥180,000' });
     await quoted.waitFor();
     assert.doesNotMatch((await homeowner.locator('main').textContent()) ?? '', /13900139001/);
     homeowner.once('dialog', (dialog) => void dialog.accept());
     await quoted.getByRole('button', { name: 'Pick this quote' }).click();
-    await homeowner.getByRole('heading', { name: 'Your pick' }).waitFor();
+    await homeowner.getByRole('heading', { name: /Your pick/ }).waitFor();
     await homeowner.getByText('13900139001').first().waitFor();
     await homeowner.locator('.chip', { hasText: 'Team picked' }).first().waitFor();
 

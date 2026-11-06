@@ -10,6 +10,7 @@
   },
   "scripts": {
     "test": "npm run build && node --disable-warning=ExperimentalWarning --test \"test/*.test.ts\" \"dist/test/api/*.test.js\"",
+    "test:postgres": "npm run build && node --disable-warning=ExperimentalWarning scripts/test-postgres.ts",
     "test:live": "node --disable-warning=ExperimentalWarning --test \"test/live/*.test.ts\"",
     "typecheck": "tsc -p .",
     "build": "node -e \"require('fs').rmSync('dist', { recursive: true, force: true })\" && tsc -p tsconfig.build.json",
@@ -20,7 +21,9 @@
     "homebox": "node --disable-warning=ExperimentalWarning scripts/homebox.ts"
   },
   "devDependencies": {
+    "@electric-sql/pglite-socket": "0.2.18",
     "@types/node": "24.19.2",
+    "@types/pg": "8.23.1",
     "drizzle-kit": "0.31.11",
     "playwright-core": "1.65.0",
     "typescript": "7.0.2"
@@ -35,11 +38,14 @@
     "@nestjs/jwt": "12.0.3",
     "@nestjs/platform-express": "12.3.3",
     "@nestjs/throttler": "6.7.1",
+    "china-area-data": "5.0.1",
     "class-transformer": "0.5.1",
     "class-validator": "0.15.1",
     "deepagents": "1.16.2",
     "drizzle-orm": "0.45.4",
     "langchain": "1.6.2",
+    "langsmith": "0.9.0",
+    "pg": "8.23.1",
     "reflect-metadata": "0.2.2",
     "rxjs": "7.8.2",
     "zod": "4.6.7"

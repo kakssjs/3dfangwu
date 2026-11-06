@@ -72,6 +72,10 @@ npm run api
 
 `STUDIO_API_HOST`, `STUDIO_API_PORT` and `STUDIO_SITE_URL` (the interface's address, used in the project and invitation links) are optional: `.env.example` lists them.
 
+**Database.** PostgreSQL runs inside the app by default (nothing to install). To use a PostgreSQL server instead, set `DATABASE_URL=postgres://user:password@host:5432/name` in `.env.local`; the app applies its migrations on start and says which database it is using. `npm run test:postgres` runs the database tests over a real PostgreSQL connection (a throwaway server unless you set `STUDIO_TEST_DATABASE_URL` to a database whose name contains "test": it is wiped).
+
+**Map.** The map and community search use Amap (高德地图). Put your Web (JS API) key in `.env.local` as `AMAP_KEY` and its security code as `AMAP_SECURITY_CODE`: the page gets the key, the code stays on the server. Without the key there is no map and the city and district are picked from the list; without the code the map shows but search is off. "Use my location" needs no key.
+
 Every route is in `WORKFLOW.md` section 6.4, and `test/api/marketplace.test.ts` uses them in order. By hand, use curl in a bash shell (in PowerShell, use `curl.exe` and put the JSON in a file: `-d @body.json`).
 
 Register a homeowner. A contractor is the same with `"role":"contractor"`. The reply holds a token to send as `Authorization: Bearer <token>`:

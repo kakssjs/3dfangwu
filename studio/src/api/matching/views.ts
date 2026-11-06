@@ -43,6 +43,7 @@ export function projectFields(project: Project, siteUrl: string) {
     district: project.district,
     floorAreaM2: project.floorAreaM2,
     layout: project.layout,
+    community: project.community,
     renovationType: project.renovationType,
     style: project.style,
     budgetMinCny: project.budgetMinCny,

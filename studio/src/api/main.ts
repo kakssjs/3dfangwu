@@ -33,7 +33,7 @@ function setup(): void {
 
 async function serve(): Promise<void> {
   const config = loadConfig(process.env);
-  const database = await openDatabase(config.dbDir);
+  const database = await openDatabase({ url: config.databaseUrl, dataDir: config.dbDir, poolMax: config.databasePoolMax });
   let app: Awaited<ReturnType<typeof createApp>> | undefined;
   try {
     app = await createApp({ config, database });
@@ -45,7 +45,7 @@ async function serve(): Promise<void> {
     throw error;
   }
   const running = app;
-  console.log(`I Renovation API: http://${config.host}:${config.port}/api (database in ${config.dbDir})`);
+  console.log(`I Renovation: http://${config.host}:${config.port}/ (API at /api) · database: ${database.describe}`);
   // The runner (N3): due tasks once a minute, once MiMo is set. Without it the agents wait and the
   // rest of the API runs; you can still run tasks by hand (POST /api/admin/runner/tick).
   const timer =

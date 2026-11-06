@@ -1,0 +1,1 @@
+ALTER TABLE "projects" ADD COLUMN "community" text DEFAULT '' NOT NULL;

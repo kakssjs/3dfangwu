@@ -6,7 +6,7 @@ import { randomUUID } from 'node:crypto';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { and, eq } from 'drizzle-orm';
+import { and, desc, eq } from 'drizzle-orm';
 import type { AuthUser } from '../auth/auth.guard.ts';
 import type { StudioConfig } from '../config.ts';
 import type { Db } from '../db/database.ts';
@@ -87,6 +87,30 @@ export class UploadsService {
   async get(user: AuthUser, id: string): Promise<UploadFile> {
     const [row] = await this.db.select().from(uploads).where(and(eq(uploads.id, id), eq(uploads.ownerId, user.id))).limit(1);
     if (!row) throw new NotFoundException('No such upload of yours');
+    const bytes = await readFile(path.join(this.filesDir, row.storagePath));
+    return { ...view(row), dataBase64: bytes.toString('base64') };
+  }
+
+  /** The sender's own files, newest first; `projectId` narrows to one project's. */
+  async listOwn(user: AuthUser, projectId?: string): Promise<UploadView[]> {
+    const rows = await this.db
+      .select()
+      .from(uploads)
+      .where(projectId ? and(eq(uploads.ownerId, user.id), eq(uploads.projectId, projectId)) : eq(uploads.ownerId, user.id))
+      .orderBy(desc(uploads.createdAt));
+    return rows.map(view);
+  }
+
+  /** Your console: the files one account sent, such as a contractor's licence and project photos (D17). */
+  async listFor(ownerId: string): Promise<UploadView[]> {
+    const rows = await this.db.select().from(uploads).where(eq(uploads.ownerId, ownerId)).orderBy(desc(uploads.createdAt));
+    return rows.map(view);
+  }
+
+  /** Your console: any file, to check a contractor's documents (D17). */
+  async getAny(id: string): Promise<UploadFile> {
+    const [row] = await this.db.select().from(uploads).where(eq(uploads.id, id)).limit(1);
+    if (!row) throw new NotFoundException('No such upload');
     const bytes = await readFile(path.join(this.filesDir, row.storagePath));
     return { ...view(row), dataBase64: bytes.toString('base64') };
   }

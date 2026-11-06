@@ -36,3 +36,9 @@ export class UploadDto {
   @IsUUID()
   projectId?: string;
 }
+
+export class UploadListQueryDto {
+  @IsOptional()
+  @IsUUID()
+  projectId?: string;
+}

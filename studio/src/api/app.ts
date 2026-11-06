@@ -11,11 +11,17 @@ import { MimoClient, httpTransport } from './agents/mimo.ts';
 import type { BaseChatModel } from '@langchain/core/language_models/chat_models';
 import { AuthModule } from './auth/auth.module.ts';
 import path from 'node:path';
+import type { ProxyReq, ProxyRes } from './maps/amap.ts';
 import { studioDir, type StudioConfig } from './config.ts';
 import { ConsentModule } from './consent/consent.module.ts';
 import { ContractorsModule } from './contractors/contractors.module.ts';
 import type { Database } from './db/database.ts';
+import { GeoModule } from './geo/geo.module.ts';
+import { nominatimLookup, type GeoLookup } from './geo/geo.ts';
+import { AMAP_CONNECT_SOURCES, AMAP_IMAGE_SOURCES, AMAP_PREFIX, AMAP_SCRIPT_SOURCES, amapProxy } from './maps/amap.ts';
 import { MatchingModule } from './matching/matching.module.ts';
+import { MapsModule } from './maps/maps.module.ts';
+import { RegionsModule } from './regions/regions.module.ts';
 import { CONFIG, DB } from './tokens.ts';
 import { UploadsModule } from './uploads/uploads.module.ts';
 
@@ -37,7 +43,7 @@ class CoreModule {
 
 @Module({})
 export class AppModule {
-  static register(config: StudioConfig, database: Database, rateLimits: boolean, mimo: MimoClient, deepModel: BaseChatModel | null): DynamicModule {
+  static register(config: StudioConfig, database: Database, rateLimits: boolean, mimo: MimoClient, deepModel: BaseChatModel | null, geo: GeoLookup): DynamicModule {
     return {
       module: AppModule,
       imports: [
@@ -48,6 +54,9 @@ export class AppModule {
         ConsentModule,
         ContractorsModule,
         MatchingModule,
+        RegionsModule,
+        MapsModule,
+        GeoModule.register(geo),
         UploadsModule,
         AgentsModule.register(mimo, deepModel),
       ],
@@ -67,9 +76,13 @@ export interface AppOptions {
   mimo?: MimoClient;
   /** The chat model for Agent 1's deep agents (D24). Default: MiMo from the settings, or none. */
   deepModel?: BaseChatModel | null;
+  /** Finds a place from a position. Default: OpenStreetMap's Nominatim; the tests hand in a stub. */
+  geo?: GeoLookup;
+  /** Reaches Amap for the map proxy. Default: the real one; the tests hand in a stub. */
+  amapFetch?: typeof fetch;
 }
 
-export async function createApp({ config, database, logger, rateLimits = true, mimo, deepModel }: AppOptions): Promise<NestExpressApplication> {
+export async function createApp({ config, database, logger, rateLimits = true, mimo, deepModel, geo, amapFetch }: AppOptions): Promise<NestExpressApplication> {
   const app = await NestFactory.create<NestExpressApplication>(
     AppModule.register(
       config,
@@ -77,6 +90,7 @@ export async function createApp({ config, database, logger, rateLimits = true, m
       rateLimits,
       mimo ?? new MimoClient(httpTransport({ apiKey: config.mimoApiKey, baseUrl: config.mimoBaseUrl, model: config.mimoModel })),
       deepModel === undefined ? buildDeepModel(config) : deepModel,
+      geo ?? nominatimLookup(),
     ),
     logger === false ? { logger: false } : {},
   );
@@ -89,7 +103,7 @@ export async function createApp({ config, database, logger, rateLimits = true, m
   app.useBodyParser('json', { limit: '12mb' });
   // Unknown fields are refused, and nothing is converted silently: "false" never becomes true.
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }));
-  serveSite(app);
+  serveSite(app, config, amapFetch);
   return app;
 }
 
@@ -111,15 +125,42 @@ interface Res {
  * are routes of the interface. The page's own policy allows scripts and styles from this address
  * only, and forbids framing.
  */
-function serveSite(app: NestExpressApplication): void {
+function serveSite(app: NestExpressApplication, config: StudioConfig, amapFetch?: typeof fetch): void {
+  // Every page of the app: our own address only, and the map page may be framed by it.
+  const policy = [
+    "default-src 'self'",
+    "script-src 'self'",
+    "style-src 'self'",
+    "img-src 'self' data: blob:",
+    "connect-src 'self'",
+    "frame-src 'self'",
+    "frame-ancestors 'none'",
+    "base-uri 'none'",
+    "form-action 'self'",
+  ].join('; ');
+  // The map page is the one place Amap's script runs. Amap evaluates code to draw its map, which
+  // the rest of the app never may, so this page has a policy of its own, and only our own pages may frame it.
+  const mapPolicy = [
+    "default-src 'self'",
+    `script-src 'self' 'unsafe-eval' ${AMAP_SCRIPT_SOURCES.join(' ')}`,
+    "style-src 'self' 'unsafe-inline'",
+    `img-src 'self' data: blob: ${AMAP_IMAGE_SOURCES.join(' ')}`,
+    `connect-src 'self' ${AMAP_CONNECT_SOURCES.join(' ')}`,
+    "worker-src 'self' blob:",
+    "font-src data:",
+    "frame-ancestors 'self'",
+    "base-uri 'none'",
+    "form-action 'none'",
+  ].join('; ');
+  const proxy = amapProxy(config, amapFetch);
+  app.use(AMAP_PREFIX, (req: ProxyReq, res: ProxyRes) => void proxy(req, res));
   app.use((req: Req, res: Res, next: () => void) => {
     if (req.path.startsWith('/api')) return next();
-    res.setHeader(
-      'Content-Security-Policy',
-      "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
-    );
+    res.setHeader('Content-Security-Policy', req.path === '/map-frame.html' ? mapPolicy : policy);
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('Referrer-Policy', 'no-referrer');
+    // The page may ask for the visitor's position ("use my location"); nothing embedded may.
+    res.setHeader('Permissions-Policy', 'geolocation=(self), camera=(), microphone=()');
     next();
   });
   app.useStaticAssets(webDir, { index: false, maxAge: 0 });

@@ -66,7 +66,7 @@ export const TASK_STATUSES = ['todo', 'doing', 'done', 'failed', 'escalated'] as
 export type TaskStatus = (typeof TASK_STATUSES)[number];
 
 /** The privacy notice and terms people accept when they register (N18, D17). Both are still drafts. */
-export const TERMS_VERSION = 'draft-2026-11-06';
+export const TERMS_VERSION = 'draft-2026-11-07.2';
 
 /** A mainland China mobile number, once `normalizePhone` has removed spaces, dashes and +86. */
 export const PHONE = /^1[3-9]\d{9}$/;

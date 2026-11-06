@@ -5,6 +5,7 @@ import { ApiError, api, session } from './api.js';
 import { h, mount } from './dom.js';
 import { lang, setLang, t } from './i18n.js';
 import { go, setRenderer } from './router.js';
+import { icon } from './ui.js';
 import { admin } from './views/admin.js';
 import { describe, errorBox, link, loading } from './views/common.js';
 import { application, invitationDetail, invitationsList } from './views/contractor.js';
@@ -47,28 +48,41 @@ async function ensureUser() {
 function header(path) {
   const user = session.user;
   const items = !user
-    ? [['/login', t('nav.login')], ['/register', t('nav.register')]]
+    ? [['/login', t('nav.login'), 'users'], ['/register', t('nav.register'), 'plus']]
     : user.role === 'homeowner'
-      ? [['/projects', t('nav.projects')], ['/projects/new', t('nav.new')], ['/browse', t('nav.browse')]]
-      : [['/application', t('nav.application')], ['/invitations', t('nav.invitations')]];
+      ? [['/projects', t('nav.projects'), 'home'], ['/projects/new', t('nav.new'), 'plus'], ['/browse', t('nav.browse'), 'users']]
+      : [['/application', t('nav.application'), 'file'], ['/invitations', t('nav.invitations'), 'inbox']];
   const isOn = (href) =>
     path === href ||
     (href === '/projects' && path.startsWith('/projects/') && path !== '/projects/new') ||
     (href === '/browse' && path.startsWith('/browse/')) ||
     (href === '/invitations' && path.startsWith('/invitations/'));
-  const nav = h('nav', { class: 'nav' }, items.map(([href, text]) => h('a', { href, 'data-link': true, class: isOn(href) ? 'on' : '' }, text)));
+  const badge = h('span', { class: 'badge hide' });
+  const nav = h('nav', { class: 'nav' }, items.map(([href, text, name]) => h('a', { href, 'data-link': true, class: isOn(href) ? 'on' : '' }, icon(name), text, href === '/invitations' ? badge : null)));
+  if (user?.role === 'contractor') {
+    // How many invitations are waiting for an answer: shown without holding up the page.
+    api('GET', '/invitations/mine')
+      .then((list) => {
+        const waiting = list.filter((i) => i.status === 'invited').length;
+        if (waiting) {
+          badge.textContent = String(waiting);
+          badge.classList.remove('hide');
+        }
+      })
+      .catch(() => {});
+  }
   return h(
     'header',
     { class: 'bar' },
     h(
       'div',
       { class: 'bar-in' },
-      h('a', { href: '/', 'data-link': true, class: 'brand' }, 'I Renovation 装修'),
+      h('a', { href: '/', 'data-link': true, class: 'brand' }, h('span', { class: 'logo' }, icon('build')), 'I Renovation'),
       nav,
       h(
         'div',
         { class: 'who' },
-        user ? h('span', { class: 'muted' }, user.displayName) : null,
+        user ? h('span', {}, user.displayName) : null,
         h('button', { class: 'link', onclick: () => { setLang(lang() === 'en' ? 'zh-CN' : 'en'); render(); } }, t('nav.lang')),
         user ? h('button', { class: 'link', onclick: () => { session.signOut(); go('/', true); } }, t('nav.signout')) : null,
       ),
@@ -85,7 +99,7 @@ async function render() {
   if (mine !== ticket) return;
   const path = location.pathname.replace(/\/+$/, '') || '/';
   const main = h('main', { class: 'wrap' }, loading());
-  mount(app, header(path), main, h('footer', {}, h('span', {}, t('footer.note')), ' ', link('/admin', t('nav.console'))));
+  mount(app, header(path), main, h('footer', { class: 'foot' }, h('span', {}, t('footer.note')), ' ', link('/admin', t('nav.console'))));
   const found = find(path);
   if (!found) {
     main.replaceChildren(h('h1', {}, t('notfound.title')), link('/', t('back')));

@@ -38,6 +38,13 @@ export class CreateProjectDto {
   @MaxLength(40)
   layout?: string;
 
+  /** The community found on the map. Only the owner sees it. */
+  @IsOptional()
+  @Trim()
+  @IsString()
+  @MaxLength(80)
+  community?: string;
+
   @IsIn(RENOVATION_TYPES)
   renovationType!: RenovationType;
 

@@ -19,7 +19,13 @@ describe('the interface text', () => {
   test('every key a screen asks for exists, in Chinese and in English', () => {
     const used = new Set([...source.matchAll(/\bt\('([^']+)'/g)].map((m) => m[1]!));
     // Keys built from a variable: see the template literals in the screens.
-    for (const n of [1, 2, 3]) used.add(`home.s${n}.title`).add(`home.s${n}.body`);
+    for (const key of ['match', 'sealed', 'contact']) used.add(`home.f.${key}.title`).add(`home.f.${key}.body`);
+    for (const n of [1, 2, 3, 4]) used.add(`home.step${n}.title`).add(`home.step${n}.body`).add(`home.q${n}`).add(`home.a${n}`).add(`home.pill${n}`);
+    for (const role of ['homeowner', 'contractor']) {
+      used.add(`reg.side.${role}.title`);
+      for (const n of [1, 2, 3]) used.add(`reg.side.${role}.${n}`);
+    }
+    for (const stage of ['requirements', 'design', 'matching', 'contract', 'construction', 'acceptance', 'after-sales']) used.add(`stage.${stage}`);
     for (const code of [400, 401, 403, 404, 409, 429]) used.add(`err.${code}`);
     for (const name of ['contractors', 'tasks', 'runner']) used.add(`adm.${name}`);
     for (const status of ['rejected', 'suspended']) used.add(`app.${status}`);
