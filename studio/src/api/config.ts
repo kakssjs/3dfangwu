@@ -24,6 +24,8 @@ export interface StudioConfig {
   adminKey: string;
   /** The database folder. Empty keeps the database in memory, as the tests do. */
   dbDir: string;
+  /** Where uploads are kept (N19). The tests point it at a folder of their own. */
+  filesDir: string;
 }
 
 /** Reads the settings from the environment (`.env.local` is loaded first by `main.ts`). */
@@ -41,5 +43,6 @@ export function loadConfig(env: NodeJS.ProcessEnv): StudioConfig {
     jwtSecret,
     adminKey,
     dbDir: env.STUDIO_DB_DIR || path.join(studioDir, '..', 'runtime', 'studio-db'),
+    filesDir: env.STUDIO_FILES_DIR || path.join(studioDir, '..', 'runtime', 'studio-files'),
   };
 }

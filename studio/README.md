@@ -2,7 +2,7 @@
 
 Our own code for I Renovation, the renovation design and contractor-matching platform. So far:
 
-- **API (N19, N22, N23):** one NestJS app (D20). Homeowners and contractors register; you verify the contractors; a homeowner publishes renovation requirements as a project; the verified contractors in the matching area bid; the homeowner filters the bids and picks one. PostgreSQL runs inside the app. Every route is in `WORKFLOW.md` section 6.4.
+- **API (N19, N22, N23):** one NestJS app (D20). Homeowners and contractors register; you verify the contractors; a homeowner saves renovation requirements as a project and sees the verified teams that fit it, each with its reasons; they invite up to three, each team answers with a decline or one sealed quote within 7 days, and the homeowner picks one. PostgreSQL runs inside the app. Every route is in `WORKFLOW.md` section 6.4.
 - **Home record (N9):** one JSON file per customer home, built from floorplan-3d's rooms and furniture. Each piece of furniture is placed in the room that contains it; appliances are kept apart for micasa (N12).
 - **Homebox connector (N11):** gives each home its own Homebox household. Rooms become locations, furniture becomes items with price, and the customer gets a one-time sign-up link.
 
@@ -70,7 +70,7 @@ Start it at http://127.0.0.1:3100/api. Ctrl+C stops it. Its database is in `../r
 npm run api
 ```
 
-`STUDIO_API_HOST`, `STUDIO_API_PORT` and `STUDIO_SITE_URL` (the interface's address, used in the project and bid links) are optional: `.env.example` lists them.
+`STUDIO_API_HOST`, `STUDIO_API_PORT` and `STUDIO_SITE_URL` (the interface's address, used in the project and invitation links) are optional: `.env.example` lists them.
 
 Every route is in `WORKFLOW.md` section 6.4, and `test/api/marketplace.test.ts` uses them in order. By hand, use curl in a bash shell (in PowerShell, use `curl.exe` and put the JSON in a file: `-d @body.json`).
 
@@ -118,7 +118,8 @@ npm run test:live
 |---|---|
 | `src/home-record.ts` | The home record: types, room areas, which room each item is in |
 | `src/homebox.ts` | Homebox API client and the sync |
-| `src/api/` | The NestJS API: `main.ts` (`npm run api`), `app.ts` (the app), `config.ts` (settings), `domain.ts` (shared words and rules), `validation.ts` (request checks), `db/` (tables and the database), and one folder per area: `auth/`, `contractors/`, `bidding/` |
+| `src/api/` | The NestJS API: `main.ts` (`npm run api`), `app.ts` (the app), `config.ts` (settings), `domain.ts` (shared words and rules), `validation.ts` (request checks), `db/` (tables and the database), and one folder per area: `auth/`, `consent/`, `contractors/`, `matching/`, `uploads/` |
+| `templates/legal/` | The privacy notice, the terms of use and the contractor terms, in Chinese and English, served at `GET /api/legal` |
 | `src/env-file.ts` | Writes keys to `.env.local`, for both setup commands |
 | `drizzle/`, `drizzle.config.ts` | The database's migrations, written by `npm run db:generate` |
 | `tsconfig.build.json` | How `npm run build` compiles the API into `dist/` (not in git) |
@@ -128,4 +129,5 @@ npm run test:live
 | `orders/demo/home.json` | The demo home, linked to the Homebox on this PC |
 | `.env.local` | Homebox address, studio account and API key; the API's sign-in secret and your admin key. Private: never share it |
 | `../runtime/studio-db/` | The API's database (PostgreSQL run by PGlite). Not in git. One API per folder |
+| `../runtime/studio-files/` | The files people upload (N19), with their metadata cleaned off. Not in git |
 | `../runtime/homebox/` | Homebox itself (v0.27.1), its data (`.data/`) and its API-key secret (`api-key-pepper.txt`). Changing that secret cancels every API key |

@@ -2,7 +2,7 @@
 
 I Renovation: an AI renovation design and contractor-matching platform, run as a one-person company and built for JUNCTION CHINA 2026 (Xiaomi MiMo track, "OPC · 一人公司"). One human, the boss, and a team of MiMo agents turn a homeowner's floor plan into a design package, let verified contractors bid on it on one bid sheet, and follow the contract, the construction, the final acceptance and after-sales, in Chinese and English.
 
-Work in progress: the plan is final, and the first parts are built and tested in `studio/`: a NestJS API where homeowners and contractors register, homeowners publish renovation requirements, verified contractors bid, and the homeowner filters the bids and picks one (N19, N22, N23); the home record (N9); and the Homebox connector (N11). The rest is planned item by item in `CHANGES.md`.
+Work in progress: the plan is final, and the first parts are built and tested in `studio/`: a NestJS API where homeowners and contractors register, homeowners save renovation requirements and invite up to three matched verified teams, each team gives one sealed quote, and the homeowner picks one (N19, N22, N23); the home record (N9); and the Homebox connector (N11). The rest is planned item by item in `CHANGES.md`.
 
 | Read | For |
 |---|---|

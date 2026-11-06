@@ -181,7 +181,33 @@ export const invitations = pgTable(
   ],
 );
 
+/**
+ * A file someone sent us (N19): kept on disk under the files folder, with what it really is and
+ * who may see it recorded here. Photos arrive with their metadata already removed (N18).
+ */
+export const uploads = pgTable(
+  'uploads',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    ownerId: uuid('owner_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    /** Which project it was sent for, when it was sent for one (a floor plan, a site photo). */
+    projectId: uuid('project_id').references(() => projects.id, { onDelete: 'set null' }),
+    /** The name the sender gave it. */
+    filename: text('filename').notNull(),
+    /** What the bytes really are, after the content check (N19). */
+    contentType: text('content_type').notNull(),
+    sizeBytes: integer('size_bytes').notNull(),
+    /** Where the bytes are, relative to the files folder. */
+    storagePath: text('storage_path').notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [index('uploads_by_owner').on(t.ownerId), index('uploads_by_project').on(t.projectId)],
+);
+
 export type User = typeof users.$inferSelect;
 export type ContractorProfile = typeof contractorProfiles.$inferSelect;
 export type Project = typeof projects.$inferSelect;
 export type Invitation = typeof invitations.$inferSelect;
+export type Upload = typeof uploads.$inferSelect;

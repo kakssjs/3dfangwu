@@ -2,6 +2,9 @@
 
 import 'reflect-metadata';
 import { randomBytes } from 'node:crypto';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 import type { AddressInfo } from 'node:net';
 import { createApp } from '../../src/api/app.ts';
 import type { StudioConfig } from '../../src/api/config.ts';
@@ -19,12 +22,15 @@ export interface Api {
   adminKey: string;
   /** For what no route can do, such as letting an invitation lapse. */
   db: Db;
+  /** Where this app's uploads are stored; the folder goes when the app closes. */
+  filesDir: string;
   call(method: string, path: string, options?: CallOptions): Promise<{ status: number; body: any }>;
   close(): Promise<void>;
 }
 
 export async function startApi({ rateLimits = false, adminKey = randomBytes(24).toString('base64url') } = {}): Promise<Api> {
   const database = await openDatabase();
+  const filesDir = mkdtempSync(path.join(tmpdir(), 'studio-files-'));
   const config: StudioConfig = {
     host: '127.0.0.1',
     port: 0,
@@ -32,6 +38,7 @@ export async function startApi({ rateLimits = false, adminKey = randomBytes(24).
     jwtSecret: randomBytes(32).toString('base64url'),
     adminKey,
     dbDir: '',
+    filesDir,
   };
   const app = await createApp({ config, database, logger: false, rateLimits });
   await app.listen(0, '127.0.0.1');
@@ -40,6 +47,7 @@ export async function startApi({ rateLimits = false, adminKey = randomBytes(24).
   return {
     adminKey,
     db: database.db,
+    filesDir,
     async call(method, path, { token, admin, body } = {}) {
       const headers: Record<string, string> = {};
       if (token) headers.authorization = `Bearer ${token}`;
@@ -56,6 +64,7 @@ export async function startApi({ rateLimits = false, adminKey = randomBytes(24).
     async close() {
       await app.close();
       await database.close();
+      rmSync(filesDir, { recursive: true, force: true });
     },
   };
 }

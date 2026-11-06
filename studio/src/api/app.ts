@@ -7,10 +7,12 @@ import type { NestExpressApplication } from '@nestjs/platform-express';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { AuthModule } from './auth/auth.module.ts';
 import type { StudioConfig } from './config.ts';
+import { ConsentModule } from './consent/consent.module.ts';
 import { ContractorsModule } from './contractors/contractors.module.ts';
 import type { Database } from './db/database.ts';
 import { MatchingModule } from './matching/matching.module.ts';
 import { CONFIG, DB } from './tokens.ts';
+import { UploadsModule } from './uploads/uploads.module.ts';
 
 /** The settings and the database, for every module. */
 @Module({})
@@ -38,8 +40,10 @@ export class AppModule {
         // 120 requests a minute from one address; sign-up and sign-in allow 10 (auth.controller.ts).
         ThrottlerModule.forRoot({ throttlers: [{ name: 'default', ttl: 60_000, limit: 120 }], skipIf: () => !rateLimits }),
         AuthModule,
+        ConsentModule,
         ContractorsModule,
         MatchingModule,
+        UploadsModule,
       ],
       providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
     };
@@ -64,6 +68,9 @@ export async function createApp({ config, database, logger, rateLimits = true }:
   app.disable('x-powered-by');
   // Behind Caddy on the same server (N20), rate limits count the visitor's address, not Caddy's.
   app.set('trust proxy', 'loopback');
+  // An upload is one JSON body with its bytes in base64 (uploads, N19), so the body can be up to
+  // ~12 MB; every other route sends only text fields, and the rate limits keep abuse in check.
+  app.useBodyParser('json', { limit: '12mb' });
   // Unknown fields are refused, and nothing is converted silently: "false" never becomes true.
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }));
   return app;
