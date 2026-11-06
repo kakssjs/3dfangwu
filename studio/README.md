@@ -64,7 +64,7 @@ The first time only: write the sign-in secret and your admin key to `.env.local`
 npm run api -- setup
 ```
 
-Start it at http://127.0.0.1:3100/api. Ctrl+C stops it. Its database is in `../runtime/studio-db/`, which isn't in git; set `STUDIO_DB_DIR` to use another folder:
+Start it. The interface is at http://127.0.0.1:3100/ and the API at http://127.0.0.1:3100/api. Ctrl+C stops it. Its database is in `../runtime/studio-db/`, which isn't in git; set `STUDIO_DB_DIR` to use another folder:
 
 ```bash
 npm run api
@@ -119,6 +119,7 @@ npm run test:live
 | `src/home-record.ts` | The home record: types, room areas, which room each item is in |
 | `src/homebox.ts` | Homebox API client and the sync |
 | `src/api/` | The NestJS API: `main.ts` (`npm run api`), `app.ts` (the app), `config.ts` (settings), `domain.ts` (shared words and rules), `validation.ts` (request checks), `db/` (tables and the database), and one folder per area: `auth/`, `consent/`, `contractors/`, `matching/`, `uploads/` |
+| `web/` | The interface (D25): plain JavaScript modules and CSS, served by the API app at `/`. `js/views/` has the homeowner, contractor and console screens; `js/i18n.js` has the Chinese and English text |
 | `templates/legal/` | The privacy notice, the terms of use and the contractor terms, in Chinese and English, served at `GET /api/legal` |
 | `src/env-file.ts` | Writes keys to `.env.local`, for both setup commands |
 | `drizzle/`, `drizzle.config.ts` | The database's migrations, written by `npm run db:generate` |

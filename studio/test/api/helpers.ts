@@ -22,6 +22,8 @@ export interface CallOptions {
 
 export interface Api {
   adminKey: string;
+  /** The address the app listens on, for tests that open the site in a browser. */
+  url: string;
   /** For what no route can do, such as letting an invitation lapse. */
   db: Db;
   /** Where this app's uploads are stored; the folder goes when the app closes. */
@@ -61,6 +63,7 @@ export async function startApi({
   const base = `http://127.0.0.1:${port}/api`;
   return {
     adminKey,
+    url: `http://127.0.0.1:${port}`,
     db: database.db,
     filesDir,
     async call(method, path, { token, admin, body } = {}) {

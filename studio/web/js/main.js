@@ -1,0 +1,130 @@
+// The I Renovation interface (N1, N26, N8, D25): one page, served by the NestJS app at `/`, calling
+// the API at `/api`. Homeowner, contractor and console screens share this shell.
+
+import { ApiError, api, session } from './api.js';
+import { h, mount } from './dom.js';
+import { lang, setLang, t } from './i18n.js';
+import { go, setRenderer } from './router.js';
+import { admin } from './views/admin.js';
+import { describe, errorBox, link, loading } from './views/common.js';
+import { application, invitationDetail, invitationsList } from './views/contractor.js';
+import { browse, browseDetail, projectDetail, projectNew, projectsList } from './views/homeowner.js';
+import { dashboardFor, home, login, register } from './views/public.js';
+
+// [path, view, who may open it]: 'homeowner', 'contractor', 'any' signed-in account, 'admin', or public.
+const ROUTES = [
+  ['/', home],
+  ['/register', register],
+  ['/login', login],
+  ['/projects', projectsList, 'homeowner'],
+  ['/projects/new', projectNew, 'homeowner'],
+  ['/projects/:id', projectDetail, 'homeowner'],
+  ['/browse', browse, 'homeowner'],
+  ['/browse/:id', browseDetail, 'homeowner'],
+  ['/application', application, 'contractor'],
+  ['/invitations', invitationsList, 'contractor'],
+  ['/invitations/:id', invitationDetail, 'any'],
+  ['/admin', admin, 'admin'],
+].map(([path, view, who]) => ({ regex: new RegExp(`^${path.replace(/:(\w+)/g, '(?<$1>[^/]+)')}$`), view, who }));
+
+function find(path) {
+  for (const route of ROUTES) {
+    const hit = route.regex.exec(path);
+    if (hit) return { route, args: { ...hit.groups } };
+  }
+  return null;
+}
+
+async function ensureUser() {
+  if (session.user || !session.token) return;
+  try {
+    session.user = await api('GET', '/auth/me');
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 401) session.signOut();
+  }
+}
+
+function header(path) {
+  const user = session.user;
+  const items = !user
+    ? [['/login', t('nav.login')], ['/register', t('nav.register')]]
+    : user.role === 'homeowner'
+      ? [['/projects', t('nav.projects')], ['/projects/new', t('nav.new')], ['/browse', t('nav.browse')]]
+      : [['/application', t('nav.application')], ['/invitations', t('nav.invitations')]];
+  const isOn = (href) =>
+    path === href ||
+    (href === '/projects' && path.startsWith('/projects/') && path !== '/projects/new') ||
+    (href === '/browse' && path.startsWith('/browse/')) ||
+    (href === '/invitations' && path.startsWith('/invitations/'));
+  const nav = h('nav', { class: 'nav' }, items.map(([href, text]) => h('a', { href, 'data-link': true, class: isOn(href) ? 'on' : '' }, text)));
+  return h(
+    'header',
+    { class: 'bar' },
+    h(
+      'div',
+      { class: 'bar-in' },
+      h('a', { href: '/', 'data-link': true, class: 'brand' }, 'I Renovation 装修'),
+      nav,
+      h(
+        'div',
+        { class: 'who' },
+        user ? h('span', { class: 'muted' }, user.displayName) : null,
+        h('button', { class: 'link', onclick: () => { setLang(lang() === 'en' ? 'zh-CN' : 'en'); render(); } }, t('nav.lang')),
+        user ? h('button', { class: 'link', onclick: () => { session.signOut(); go('/', true); } }, t('nav.signout')) : null,
+      ),
+    ),
+  );
+}
+
+let ticket = 0;
+
+async function render() {
+  const mine = ++ticket;
+  const app = document.getElementById('app');
+  await ensureUser();
+  if (mine !== ticket) return;
+  const path = location.pathname.replace(/\/+$/, '') || '/';
+  const main = h('main', { class: 'wrap' }, loading());
+  mount(app, header(path), main, h('footer', {}, h('span', {}, t('footer.note')), ' ', link('/admin', t('nav.console'))));
+  const found = find(path);
+  if (!found) {
+    main.replaceChildren(h('h1', {}, t('notfound.title')), link('/', t('back')));
+    return;
+  }
+  const { route, args } = found;
+  const user = session.user;
+  if ((route.who === 'homeowner' || route.who === 'contractor' || route.who === 'any') && !user) {
+    go(`/login?next=${encodeURIComponent(path + location.search)}`, true);
+    return;
+  }
+  if ((route.who === 'homeowner' || route.who === 'contractor') && user.role !== route.who) {
+    go(dashboardFor(user), true);
+    return;
+  }
+  try {
+    const view = await route.view({ args, params: new URLSearchParams(location.search) });
+    if (mine !== ticket || view === null) return;
+    main.replaceChildren(view);
+    window.scrollTo(0, 0);
+  } catch (error) {
+    if (mine !== ticket) return;
+    if (error instanceof ApiError && error.status === 401 && !error.admin) {
+      session.signOut();
+      go(`/login?next=${encodeURIComponent(path + location.search)}`, true);
+      return;
+    }
+    main.replaceChildren(errorBox(error));
+    console.error(describe(error));
+  }
+}
+
+setRenderer(render);
+
+document.addEventListener('click', (event) => {
+  const a = event.target instanceof Element ? event.target.closest('a[data-link]') : null;
+  if (!a || event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || a.target === '_blank') return;
+  event.preventDefault();
+  go(a.getAttribute('href'));
+});
+window.addEventListener('popstate', render);
+render();

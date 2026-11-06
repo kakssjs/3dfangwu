@@ -10,7 +10,8 @@ import { buildDeepModel } from './agents/deep.ts';
 import { MimoClient, httpTransport } from './agents/mimo.ts';
 import type { BaseChatModel } from '@langchain/core/language_models/chat_models';
 import { AuthModule } from './auth/auth.module.ts';
-import type { StudioConfig } from './config.ts';
+import path from 'node:path';
+import { studioDir, type StudioConfig } from './config.ts';
 import { ConsentModule } from './consent/consent.module.ts';
 import { ContractorsModule } from './contractors/contractors.module.ts';
 import type { Database } from './db/database.ts';
@@ -88,5 +89,43 @@ export async function createApp({ config, database, logger, rateLimits = true, m
   app.useBodyParser('json', { limit: '12mb' });
   // Unknown fields are refused, and nothing is converted silently: "false" never becomes true.
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }));
+  serveSite(app);
   return app;
+}
+
+const webDir = path.join(studioDir, 'web');
+
+// Just what the site middleware uses of Express's request and response.
+interface Req {
+  method: string;
+  path: string;
+}
+interface Res {
+  setHeader(name: string, value: string): void;
+  sendFile(file: string): void;
+}
+
+/**
+ * The interface (D25) at `/`, next to the API at `/api`: static files from `studio/web/`, and
+ * index.html for the page links the API hands out (`/projects/<id>`, `/invitations/<id>`), which
+ * are routes of the interface. The page's own policy allows scripts and styles from this address
+ * only, and forbids framing.
+ */
+function serveSite(app: NestExpressApplication): void {
+  app.use((req: Req, res: Res, next: () => void) => {
+    if (req.path.startsWith('/api')) return next();
+    res.setHeader(
+      'Content-Security-Policy',
+      "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
+    );
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Referrer-Policy', 'no-referrer');
+    next();
+  });
+  app.useStaticAssets(webDir, { index: false, maxAge: 0 });
+  app.use((req: Req, res: Res, next: () => void) => {
+    const page = req.method === 'GET' && !req.path.startsWith('/api') && path.extname(req.path) === '';
+    if (!page) return next();
+    res.sendFile(path.join(webDir, 'index.html'));
+  });
 }
