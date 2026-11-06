@@ -11,21 +11,48 @@ export type Language = (typeof LANGUAGES)[number];
 export const RENOVATION_TYPES = ['new-home', 'old-home', 'partial'] as const;
 export type RenovationType = (typeof RENOVATION_TYPES)[number];
 
+/**
+ * The design styles, shared by the design stage, restyles (R2), projects and contractors' profiles,
+ * so a homeowner's style and a team's styles can be compared: 现代简约, 奶油风, 原木风, 新中式, 北欧,
+ * 轻奢, 工业风, 侘寂.
+ */
+export const DESIGN_STYLES = [
+  'modern-minimalist',
+  'cream',
+  'natural-wood',
+  'new-chinese',
+  'nordic',
+  'modern-luxury',
+  'industrial',
+  'wabi-sabi',
+] as const;
+export type DesignStyle = (typeof DESIGN_STYLES)[number];
+
 export const CONTRACTOR_KINDS = ['company', 'team'] as const;
 export type ContractorKind = (typeof CONTRACTOR_KINDS)[number];
 
-/** A contractor sees projects and bids only while `verified`, which only you can set (D17). */
+/** A contractor is matched, invited and can quote only while `verified`, which only you can set (D17). */
 export const CONTRACTOR_STATUSES = ['pending', 'verified', 'rejected', 'suspended'] as const;
 export type ContractorStatus = (typeof CONTRACTOR_STATUSES)[number];
 export const REVIEW_DECISIONS = ['verified', 'rejected', 'suspended'] as const;
 export type ReviewDecision = (typeof REVIEW_DECISIONS)[number];
 
-/** `open` takes bids until the deadline; `awarded` once the homeowner picks one; `closed` without a pick. */
+/** `open` while the homeowner looks for a team; `awarded` once they pick a quote; `closed` without a pick. */
 export const PROJECT_STATUSES = ['open', 'awarded', 'closed'] as const;
 export type ProjectStatus = (typeof PROJECT_STATUSES)[number];
 
-export const BID_STATUSES = ['submitted', 'selected', 'not-selected'] as const;
-export type BidStatus = (typeof BID_STATUSES)[number];
+/**
+ * An invitation is stored as `invited` until the team answers: `declined`, or `quoted` once it has
+ * sent its quote. The homeowner's pick makes one `selected` and every other open one `not-selected`.
+ * `expired` is never stored: an `invited` one past its `expiresAt` reads as expired.
+ */
+export const INVITATION_STATUSES = ['invited', 'declined', 'quoted', 'selected', 'not-selected'] as const;
+export type InvitationStatus = (typeof INVITATION_STATUSES)[number];
+
+/** A homeowner can have at most this many invitations open at once (WORKFLOW.md D23). */
+export const MAX_LIVE_INVITATIONS = 3;
+/** Days a team has to answer an invitation before it lapses. */
+export const INVITATION_DAYS = 7;
 
 /** The privacy notice and terms people accept when they register (N18, D17). Both are still drafts. */
 export const TERMS_VERSION = 'draft-2026-11-06';
@@ -47,7 +74,7 @@ export function isRealDate(value: string): boolean {
 
 /**
  * Finds contact details in free text: a phone number or an email address. A homeowner and a
- * contractor get each other's contact only once the homeowner picks the bid (D7), so text that
+ * contractor get each other's contact only once the homeowner picks a quote (D7), so text that
  * carries one is refused.
  */
 export function findContactDetails(text: string): string | undefined {

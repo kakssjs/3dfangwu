@@ -13,16 +13,19 @@ import {
   Max,
   MaxLength,
   Min,
+  ValidateIf,
   ValidateNested,
 } from 'class-validator';
 import {
   CONTRACTOR_KINDS,
   CONTRACTOR_STATUSES,
+  DESIGN_STYLES,
   LICENCE_NUMBER,
   RENOVATION_TYPES,
   REVIEW_DECISIONS,
   type ContractorKind,
   type ContractorStatus,
+  type DesignStyle,
   type RenovationType,
   type ReviewDecision,
 } from '../domain.ts';
@@ -97,7 +100,7 @@ export class ContractorProfileDto {
   @Length(1, 40)
   city!: string;
 
-  /** The districts they work in. They see the projects posted there (D21). */
+  /** The districts they work in: only projects there can be matched to them and invite them (D23). */
   @IsArray()
   @ArrayMinSize(1)
   @ArrayMaxSize(30)
@@ -113,6 +116,29 @@ export class ContractorProfileDto {
   @IsIn(RENOVATION_TYPES, { each: true })
   renovationTypes!: RenovationType[];
 
+  /** The design styles they work in. Matching compares them with the homeowner's style. */
+  @IsOptional()
+  @IsArray()
+  @ArrayUnique()
+  @IsIn(DESIGN_STYLES, { each: true })
+  styles?: DesignStyle[];
+
+  /**
+   * What a full renovation usually costs with them, per m² of floor area, in CNY: both numbers or
+   * neither. Matching compares it with the homeowner's budget, and homeowners see it.
+   */
+  @ValidateIf((o: ContractorProfileDto) => o.priceMinCnyPerM2 !== undefined || o.priceMaxCnyPerM2 !== undefined)
+  @IsInt()
+  @Min(100)
+  @Max(50_000)
+  priceMinCnyPerM2?: number;
+
+  @ValidateIf((o: ContractorProfileDto) => o.priceMinCnyPerM2 !== undefined || o.priceMaxCnyPerM2 !== undefined)
+  @IsInt()
+  @Min(100)
+  @Max(50_000)
+  priceMaxCnyPerM2?: number;
+
   @IsInt()
   @Min(0)
   @Max(100)
@@ -123,6 +149,7 @@ export class ContractorProfileDto {
   @Max(10_000)
   teamSize!: number;
 
+  /** How many projects they can take at once, which also caps their open invitations (D23). */
   @IsInt()
   @Min(1)
   @Max(1_000)

@@ -1,13 +1,13 @@
 import { Type } from 'class-transformer';
 import { IsIn, IsInt, IsNumber, IsOptional, IsString, IsUUID, Length, Max, MaxLength, Min } from 'class-validator';
-import { RENOVATION_TYPES, type RenovationType } from '../domain.ts';
+import { DESIGN_STYLES, RENOVATION_TYPES, type DesignStyle, type RenovationType } from '../domain.ts';
 import { IsDateOnly, Trim } from '../validation.ts';
 
 const MAX_CNY = 100_000_000;
 
 /**
- * A homeowner's renovation requirements, published as a project for verified contractors to bid on
- * (D21). Never the homeowner's name, contact or address: contractors see only what is here (D7).
+ * A homeowner's renovation requirements. Only the teams they invite see it (D23), and never the
+ * homeowner's name, contact or address: invited teams see only what is here (D7).
  */
 export class CreateProjectDto {
   @Trim()
@@ -41,12 +41,10 @@ export class CreateProjectDto {
   @IsIn(RENOVATION_TYPES)
   renovationType!: RenovationType;
 
-  /** For example 现代简约 or 奶油风. */
+  /** The style they chose, if they have: matching compares it with the styles each team works in. */
   @IsOptional()
-  @Trim()
-  @IsString()
-  @MaxLength(80)
-  style?: string;
+  @IsIn(DESIGN_STYLES)
+  style?: DesignStyle;
 
   @IsInt()
   @Min(1_000)
@@ -61,13 +59,6 @@ export class CreateProjectDto {
   @IsDateOnly()
   desiredStart!: string;
 
-  /** Days contractors have to bid. Default 7. */
-  @IsOptional()
-  @IsInt()
-  @Min(1)
-  @Max(30)
-  biddingDays?: number;
-
   /** What to do, room by room, and what matters to the homeowner. */
   @Trim()
   @IsString()
@@ -75,20 +66,31 @@ export class CreateProjectDto {
   description!: string;
 }
 
-export class OpenProjectsQueryDto {
+export class MatchesQueryDto {
+  /** How many teams to suggest. Default 5. */
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(10)
+  limit?: number;
+}
+
+export class InviteDto {
+  /** The team's id: `id` in a match or in a contractor's profile. */
+  @IsUUID()
+  contractorId!: string;
+
+  /** A note to the team. Never a phone number or email: contacts come only after the pick (D7). */
   @IsOptional()
   @Trim()
   @IsString()
-  @Length(1, 40)
-  district?: string;
-
-  @IsOptional()
-  @IsIn(RENOVATION_TYPES)
-  renovationType?: RenovationType;
+  @MaxLength(1000)
+  message?: string;
 }
 
-/** A contractor's bid. Labour, materials and the management fee are optional parts of the price. */
-export class BidDto {
+/** A team's one quote on an invitation. Labour, materials and the management fee are optional parts of the price. */
+export class QuoteDto {
   @IsInt()
   @Min(1_000)
   @Max(MAX_CNY)
@@ -127,58 +129,24 @@ export class BidDto {
   @MaxLength(2000)
   mainMaterials?: string;
 
-  /** The contractor's note and suggestions on the design. */
+  /** The team's note and suggestions on the design. */
   @IsOptional()
   @Trim()
   @IsString()
   @MaxLength(5000)
-  message?: string;
+  note?: string;
 }
 
-export const BID_SORTS = ['submitted', 'price', 'duration', 'experience'] as const;
-export type BidSort = (typeof BID_SORTS)[number];
-
-/** The homeowner's filters and order for the bids. The platform ranks nothing (WORKFLOW.md section 4.6). */
-export class BidQueryDto {
+export class DeclineDto {
+  /** Shown to the homeowner. Optional. */
   @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  @Min(0)
-  minPriceCny?: number;
-
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  @Min(0)
-  maxPriceCny?: number;
-
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  maxDurationDays?: number;
-
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  @Min(0)
-  minYearsInBusiness?: number;
-
-  /** Only bids that can start on or before this date. */
-  @IsOptional()
-  @IsDateOnly()
-  startBy?: string;
-
-  @IsOptional()
-  @IsIn(BID_SORTS)
-  sort?: BidSort;
-
-  @IsOptional()
-  @IsIn(['asc', 'desc'])
-  order?: 'asc' | 'desc';
+  @Trim()
+  @IsString()
+  @MaxLength(500)
+  reason?: string;
 }
 
-export class SelectBidDto {
+export class SelectDto {
   @IsUUID()
-  bidId!: string;
+  invitationId!: string;
 }

@@ -30,12 +30,12 @@ export interface FloorplanInput {
   furniture: PlacedFurniture[];
 }
 
-export const STAGES = ['requirements', 'design', 'bidding', 'contract', 'construction', 'acceptance', 'after-sales'] as const;
+export const STAGES = ['requirements', 'design', 'matching', 'contract', 'construction', 'acceptance', 'after-sales'] as const;
 export type Stage = (typeof STAGES)[number];
 export const STAGE_LABELS: Record<Stage, string> = {
   requirements: '需求',
   design: '设计',
-  bidding: '招标',
+  matching: '匹配',
   contract: '签约',
   construction: '施工',
   acceptance: '验收',

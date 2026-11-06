@@ -36,7 +36,7 @@ export function refuseContactDetails(fields: Record<string, string | undefined>)
     const found = text ? findContactDetails(text) : undefined;
     if (found) {
       throw new BadRequestException(
-        `${field} contains ${found}. Contact details are shared only once the homeowner picks a bid (D7), so please remove it.`,
+        `${field} contains ${found}. Contact details are shared only once the homeowner picks a quote (D7), so please remove it.`,
       );
     }
   }

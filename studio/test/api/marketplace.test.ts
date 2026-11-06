@@ -1,7 +1,10 @@
-// End to end: accounts, contractor verification, projects, bids, filters and the homeowner's pick.
+// End to end: accounts, contractor verification, matching, invitations, sealed quotes and the homeowner's pick.
 
 import assert from 'node:assert/strict';
+import { randomUUID } from 'node:crypto';
 import { after, before, describe, test } from 'node:test';
+import { eq } from 'drizzle-orm';
+import { invitations } from '../../src/api/db/schema.ts';
 import { SITE_URL, dateInChina, startApi, type Api } from './helpers.ts';
 
 let api: Api;
@@ -38,6 +41,9 @@ function application(overrides: Record<string, unknown> = {}) {
     city: '上海',
     districts: ['浦东新区', '闵行区'],
     renovationTypes: ['old-home', 'partial'],
+    styles: ['modern-minimalist', 'cream'],
+    priceMinCnyPerM2: 1_500,
+    priceMaxCnyPerM2: 2_500,
     yearsInBusiness: 10,
     teamSize: 25,
     maxConcurrentProjects: 6,
@@ -71,17 +77,34 @@ function requirements(overrides: Record<string, unknown> = {}) {
     floorAreaM2: 98.5,
     layout: '3室2厅1卫',
     renovationType: 'old-home',
-    style: '现代简约',
+    style: 'modern-minimalist',
     budgetMinCny: 150_000,
     budgetMaxCny: 200_000,
     desiredStart: dateInChina(30),
-    biddingDays: 7,
     description: '全屋翻新：水电重做，厨卫翻新，客厅和卧室换木地板。',
     ...overrides,
   };
 }
 
-function bid(overrides: Record<string, unknown> = {}) {
+/** Matching looks at teams by city, so each test works in a city of its own and sees only its own teams. */
+const DISTRICT = '中心区';
+
+/** A verified team in `city`, working in DISTRICT. */
+function team(city: string, name: string, overrides: Record<string, unknown> = {}) {
+  return verifiedContractor(name, { companyName: name, city, districts: [DISTRICT, '开发区'], ...overrides });
+}
+
+/** `count` past projects listed in `district`. */
+function pastIn(district: string, count: number) {
+  return Array.from({ length: count }, (_, i) => ({ title: `${district}项目${i + 1}`, district, year: 2025 }));
+}
+
+/** A homeowner's requirements for a home in `city`, in DISTRICT. */
+function projectIn(city: string, overrides: Record<string, unknown> = {}) {
+  return requirements({ city, district: DISTRICT, ...overrides });
+}
+
+function quote(overrides: Record<string, unknown> = {}) {
   return {
     priceCny: 180_000,
     labourCny: 60_000,
@@ -90,10 +113,23 @@ function bid(overrides: Record<string, unknown> = {}) {
     durationDays: 60,
     earliestStart: dateInChina(20),
     mainMaterials: '马可波罗瓷砖，大自然地板',
-    message: '建议厨房改为开放式',
+    note: '建议厨房改为开放式',
     ...overrides,
   };
 }
+
+/** The company names in a list of matches or invitations, in order. */
+const names = (list: { contractor: { companyName: string } }[]) => list.map((entry) => entry.contractor.companyName);
+
+interface Reason {
+  factor: string;
+  result: string;
+  note: string;
+}
+
+/** A match's reasons, by factor. */
+const reasonsOf = (match: { reasons: Reason[] }): Partial<Record<string, Reason>> =>
+  Object.fromEntries(match.reasons.map((r) => [r.factor, r]));
 
 describe('accounts', () => {
   test('registers homeowners and contractors, and signs them in', async () => {
@@ -165,9 +201,10 @@ describe('contractor verification and profiles', () => {
     assert.equal(saved.body.status, 'pending');
     assert.equal(saved.body.licenceNumber, '91310115MA1K4A2B3D');
 
-    const board = await api.call('GET', '/projects/open', { token: contractor.token });
-    assert.equal(board.status, 403);
-    assert.match(board.body.message, /waiting for review/);
+    // Until you verify the application, the team can't answer invitations.
+    const early = await api.call('PUT', `/invitations/${randomUUID()}/quote`, { token: contractor.token, body: quote() });
+    assert.equal(early.status, 403);
+    assert.match(early.body.message, /waiting for review/);
     assert.equal((await api.call('GET', `/contractors/${contractor.id}`, { token: homeowner.token })).status, 404);
 
     const queue = await api.call('GET', '/admin/contractors?status=pending', { admin: api.adminKey });
@@ -180,6 +217,9 @@ describe('contractor verification and profiles', () => {
     assert.equal(profile.body.verified, true);
     assert.equal(profile.body.qualifications[0].name, '建筑装修装饰工程专业承包二级');
     assert.equal(profile.body.pastProjects.length, 3);
+    assert.deepEqual(profile.body.styles, ['modern-minimalist', 'cream']);
+    assert.equal(profile.body.priceMinCnyPerM2, 1_500);
+    assert.equal(profile.body.priceMaxCnyPerM2, 2_500);
     for (const hidden of ['phone', 'displayName', 'reviewNote', 'maxConcurrentProjects']) {
       assert.equal(hidden in profile.body, false, hidden);
     }
@@ -194,7 +234,7 @@ describe('contractor verification and profiles', () => {
     assert.equal((await api.call('GET', '/contractors', { token: contractor.token })).status, 403);
   });
 
-  test('refuses an application with a wrong licence number or a bad date', async () => {
+  test('refuses an application with a wrong licence number, a bad date, an unknown style or a price range that does not add up', async () => {
     const contractor = await register('contractor', '赵老板');
     for (const overrides of [
       { licenceNumber: '12345' },
@@ -203,6 +243,11 @@ describe('contractor verification and profiles', () => {
       { districts: [] },
       { renovationTypes: ['castle'] },
       { pastProjects: [{ title: '项目', photos: 'x' }] },
+      { styles: ['castle'] },
+      { styles: ['cream', 'cream'] },
+      { priceMaxCnyPerM2: undefined },
+      { priceMinCnyPerM2: 3_000 },
+      { priceMinCnyPerM2: 50 },
     ]) {
       const { status } = await api.call('PUT', '/contractors/me', { token: contractor.token, body: application(overrides) });
       assert.equal(status, 400, JSON.stringify(overrides));
@@ -234,130 +279,335 @@ describe('contractor verification and profiles', () => {
   });
 });
 
-describe('projects, bids and the pick', () => {
-  test('a homeowner posts, verified contractors in the area bid, and the homeowner filters and picks one', async () => {
+describe('matching, invitations and the pick', () => {
+  test('a homeowner is matched to suitable teams, invites some, compares their sealed quotes and picks one', async () => {
+    const city = '苏州';
     const homeowner = await register('homeowner', '孙女士');
-    const near = await verifiedContractor('近邻装饰', { companyName: '近邻装饰', yearsInBusiness: 12 });
-    const cheap = await verifiedContractor('实惠装饰', { companyName: '实惠装饰', yearsInBusiness: 3 });
-    const farAway = await verifiedContractor('徐汇装饰', { companyName: '徐汇装饰', districts: ['徐汇区'] });
+    const best = await team(city, '近邻装饰', { yearsInBusiness: 12, pastProjects: pastIn(DISTRICT, 3) });
+    const dear = await team(city, '高端装饰', { priceMinCnyPerM2: 5_000, priceMaxCnyPerM2: 8_000 });
+    const quiet = await team(city, '低调装饰', { styles: [], priceMinCnyPerM2: undefined, priceMaxCnyPerM2: undefined, yearsInBusiness: 3 });
+    // These can't be matched to the project: another district, another kind of work, another city,
+    // not yet verified, suspended.
+    const otherDistrict = await team(city, '开发区装饰', { districts: ['开发区'] });
+    const otherWork = await team(city, '新房装饰', { renovationTypes: ['new-home'] });
+    const otherCity = await team('无锡', '外地装饰');
+    const waiting = await register('contractor', '待审装饰');
+    await api.call('PUT', '/contractors/me', { token: waiting.token, body: application({ city, districts: [DISTRICT] }) });
+    const stopped = await team(city, '停用装饰');
+    await api.call('POST', `/admin/contractors/${stopped.id}/review`, { admin: api.adminKey, body: { decision: 'suspended' } });
 
-    const posted = await api.call('POST', '/projects', { token: homeowner.token, body: requirements() });
+    const posted = await api.call('POST', '/projects', { token: homeowner.token, body: projectIn(city) });
     assert.equal(posted.status, 201, JSON.stringify(posted.body));
     const projectId = posted.body.id as string;
     assert.equal(posted.body.link, `${SITE_URL}/projects/${projectId}`);
     assert.equal(posted.body.status, 'open');
-    assert.equal(posted.body.bidCount, 0);
+    assert.equal(posted.body.liveInvitations, 0);
+    assert.equal(posted.body.quoteCount, 0);
 
-    const board = await api.call('GET', '/projects/open', { token: near.token });
-    const seen = board.body.find((p: { id: string }) => p.id === projectId);
-    assert.ok(seen, 'the contractor in that district sees the project');
-    assert.equal(JSON.stringify(seen).includes(homeowner.phone), false);
-    assert.equal('ownerId' in seen, false);
-    assert.equal(seen.homeowner, null);
-    const farBoard = await api.call('GET', '/projects/open', { token: farAway.token });
-    assert.equal(farBoard.body.some((p: { id: string }) => p.id === projectId), false);
-    assert.equal((await api.call('POST', `/projects/${projectId}/bids`, { token: farAway.token, body: bid() })).status, 404);
-    assert.equal((await api.call('GET', `/projects/${projectId}`, { token: farAway.token })).status, 404);
-
-    const first = await api.call('POST', `/projects/${projectId}/bids`, { token: near.token, body: bid() });
-    assert.equal(first.status, 201, JSON.stringify(first.body));
-    assert.equal(first.body.link, `${SITE_URL}/projects/${projectId}/bids/${first.body.id}`);
-    assert.equal(first.body.project.link, `${SITE_URL}/projects/${projectId}`);
-    assert.equal((await api.call('POST', `/projects/${projectId}/bids`, { token: near.token, body: bid() })).status, 409);
-    const second = await api.call('POST', `/projects/${projectId}/bids`, {
-      token: cheap.token,
-      body: bid({ priceCny: 150_000, labourCny: 50_000, materialsCny: 90_000, managementFeeCny: 5_000, durationDays: 75 }),
-    });
-    assert.equal(second.status, 201);
-
-    // Sealed: a contractor sees only their own bid.
-    assert.equal((await api.call('GET', `/bids/${second.body.id}`, { token: near.token })).status, 404);
-    const changed = await api.call('PUT', `/bids/${first.body.id}`, { token: near.token, body: bid({ priceCny: 175_000 }) });
-    assert.equal(changed.status, 200);
-    assert.equal(changed.body.priceCny, 175_000);
-
-    const all = await api.call('GET', `/projects/${projectId}/bids`, { token: homeowner.token });
+    // The matches: best fit first, with the reasons, and nothing private.
+    const matched = await api.call('GET', `/projects/${projectId}/matches`, { token: homeowner.token });
+    assert.equal(matched.status, 200, JSON.stringify(matched.body));
+    assert.deepEqual(names(matched.body), ['近邻装饰', '高端装饰', '低调装饰']);
     assert.deepEqual(
-      all.body.map((b: { contractor: { companyName: string } }) => b.contractor.companyName),
-      ['近邻装饰', '实惠装饰'],
+      matched.body.map((m: { fit: string }) => m.fit),
+      ['strong', 'possible', 'possible'],
     );
-    assert.ok(all.body.every((b: { contact: unknown }) => b.contact === null));
-    assert.equal(all.body[0].contractor.yearsInBusiness, 12);
+    assert.equal(reasonsOf(matched.body[0]).budget?.result, 'good');
+    assert.equal(reasonsOf(matched.body[0]).style?.result, 'good');
+    assert.equal(reasonsOf(matched.body[1]).budget?.result, 'none');
+    assert.match(reasonsOf(matched.body[1]).budget?.note ?? '', /well below/);
+    assert.equal(reasonsOf(matched.body[2]).budget?.result, 'unknown');
+    assert.equal(reasonsOf(matched.body[2]).style?.result, 'unknown');
+    assert.equal('score' in matched.body[0], false);
+    assert.equal('phone' in matched.body[0].contractor, false);
+    const exposed = JSON.stringify(matched.body);
+    for (const account of [best, dear, quiet]) assert.equal(exposed.includes(account.phone), false);
+    assert.equal((await api.call('GET', `/projects/${projectId}/matches?limit=2`, { token: homeowner.token })).body.length, 2);
+    for (const query of ['limit=0', 'limit=11', 'limit=abc', 'sort=price']) {
+      assert.equal((await api.call('GET', `/projects/${projectId}/matches?${query}`, { token: homeowner.token })).status, 400, query);
+    }
 
-    const names = async (query: string) =>
-      (await api.call('GET', `/projects/${projectId}/bids?${query}`, { token: homeowner.token })).body.map(
-        (b: { contractor: { companyName: string } }) => b.contractor.companyName,
-      );
-    assert.deepEqual(await names('maxPriceCny=160000'), ['实惠装饰']);
-    assert.deepEqual(await names('sort=price'), ['实惠装饰', '近邻装饰']);
-    assert.deepEqual(await names('sort=price&order=desc'), ['近邻装饰', '实惠装饰']);
-    assert.deepEqual(await names('maxDurationDays=70'), ['近邻装饰']);
-    assert.deepEqual(await names('minYearsInBusiness=5'), ['近邻装饰']);
-    assert.deepEqual(await names('sort=experience'), ['近邻装饰', '实惠装饰']);
-    assert.deepEqual(await names(`startBy=${dateInChina(25)}`), ['近邻装饰', '实惠装饰']);
-    assert.deepEqual(await names(`startBy=${dateInChina(10)}`), []);
-    assert.equal((await api.call('GET', `/projects/${projectId}/bids?maxPriceCny=abc`, { token: homeowner.token })).status, 400);
-    assert.equal((await api.call('GET', `/projects/${projectId}/bids?sort=score`, { token: homeowner.token })).status, 400);
+    // Only matched teams can be invited.
+    const invite = (token: string, contractorId: string, message?: string) =>
+      api.call('POST', `/projects/${projectId}/invitations`, {
+        token,
+        body: message === undefined ? { contractorId } : { contractorId, message },
+      });
+    for (const unsuitable of [otherDistrict.id, otherWork.id, otherCity.id, waiting.id, stopped.id, randomUUID()]) {
+      assert.equal((await invite(homeowner.token, unsuitable)).status, 404, unsuitable);
+    }
+    const first = await invite(homeowner.token, best.id, '希望周末能来量房');
+    assert.equal(first.status, 201, JSON.stringify(first.body));
+    assert.equal(first.body.link, `${SITE_URL}/invitations/${first.body.id}`);
+    assert.equal(first.body.projectId, projectId);
+    assert.equal(first.body.status, 'invited');
+    assert.equal(first.body.quote, null);
+    assert.equal(first.body.contact, null);
+    assert.equal(first.body.contractor.companyName, '近邻装饰');
+    assert.ok(new Date(first.body.expiresAt).getTime() > Date.now() + 6 * 86_400_000, 'a team has about 7 days to answer');
+    assert.equal((await invite(homeowner.token, best.id)).status, 409);
+    const second = await invite(homeowner.token, quiet.id);
+    assert.equal(second.status, 201);
+    assert.deepEqual(
+      names((await api.call('GET', `/projects/${projectId}/matches`, { token: homeowner.token })).body),
+      ['高端装饰'],
+      'a team already invited is not suggested again',
+    );
 
+    // A team sees its invitation with a brief of the project, never the homeowner's contact, and never another team's invitation.
+    const mine = await api.call('GET', '/invitations/mine', { token: best.token });
+    assert.equal(mine.body.length, 1);
+    assert.equal(mine.body[0].id, first.body.id);
+    assert.equal(mine.body[0].message, '希望周末能来量房');
+    assert.equal(mine.body[0].project.title, '浦东三室旧房翻新');
+    assert.equal(mine.body[0].project.budgetMaxCny, 200_000);
+    assert.equal(mine.body[0].homeowner, null);
+    assert.equal('id' in mine.body[0].project, false);
+    assert.equal('link' in mine.body[0].project, false);
+    assert.equal(JSON.stringify(mine.body).includes(homeowner.phone), false);
+    assert.equal((await api.call('GET', `/invitations/${second.body.id}`, { token: best.token })).status, 404);
+    assert.equal((await api.call('GET', `/invitations/${first.body.id}`, { token: dear.token })).status, 404);
+    assert.equal((await api.call('GET', `/invitations/${first.body.id}`, { token: homeowner.token })).status, 200);
+    assert.equal((await api.call('GET', `/projects/${projectId}`, { token: best.token })).status, 403, 'teams see a brief, not the project');
+
+    // One sealed quote each, which the team can revise until the pick.
+    const quoted = await api.call('PUT', `/invitations/${first.body.id}/quote`, { token: best.token, body: quote() });
+    assert.equal(quoted.status, 200, JSON.stringify(quoted.body));
+    assert.equal(quoted.body.status, 'quoted');
+    assert.equal(quoted.body.quote.priceCny, 180_000);
+    assert.ok(quoted.body.respondedAt);
+    const revised = await api.call('PUT', `/invitations/${first.body.id}/quote`, { token: best.token, body: quote({ priceCny: 175_000 }) });
+    assert.equal(revised.status, 200);
+    assert.equal(revised.body.quote.priceCny, 175_000);
+    assert.equal(revised.body.respondedAt, quoted.body.respondedAt);
+    const cheap = await api.call('PUT', `/invitations/${second.body.id}/quote`, {
+      token: quiet.token,
+      body: quote({ priceCny: 148_000, labourCny: 50_000, materialsCny: 90_000, managementFeeCny: 5_000, durationDays: 75 }),
+    });
+    assert.equal(cheap.status, 200, JSON.stringify(cheap.body));
+
+    // The homeowner sees the quotes in the order the invitations went out, whatever the prices.
+    const listed = await api.call('GET', `/projects/${projectId}/invitations`, { token: homeowner.token });
+    assert.deepEqual(names(listed.body), ['近邻装饰', '低调装饰']);
+    assert.deepEqual(
+      listed.body.map((i: { quote: { priceCny: number } }) => i.quote.priceCny),
+      [175_000, 148_000],
+    );
+    assert.ok(listed.body.every((i: { contact: unknown }) => i.contact === null));
+    assert.deepEqual(names((await api.call('GET', `/projects/${projectId}/invitations?sort=price`, { token: homeowner.token })).body), [
+      '近邻装饰',
+      '低调装饰',
+    ]);
+    const overview = await api.call('GET', `/projects/${projectId}`, { token: homeowner.token });
+    assert.equal(overview.body.liveInvitations, 2);
+    assert.equal(overview.body.quoteCount, 2);
+    assert.equal(overview.body.selected, null);
+
+    // Nobody else gets in.
     const stranger = await register('homeowner', '路人');
-    assert.equal((await api.call('GET', `/projects/${projectId}`, { token: stranger.token })).status, 404);
-    assert.equal((await api.call('GET', `/projects/${projectId}/bids`, { token: stranger.token })).status, 404);
+    for (const path of [`/projects/${projectId}`, `/projects/${projectId}/matches`, `/projects/${projectId}/invitations`, `/invitations/${first.body.id}`]) {
+      assert.equal((await api.call('GET', path, { token: stranger.token })).status, 404, path);
+    }
+    assert.equal((await invite(stranger.token, dear.id)).status, 404);
     assert.equal(
-      (await api.call('POST', `/projects/${projectId}/selection`, { token: stranger.token, body: { bidId: second.body.id } })).status,
+      (await api.call('POST', `/projects/${projectId}/selection`, { token: stranger.token, body: { invitationId: second.body.id } })).status,
       404,
     );
 
-    const picked = await api.call('POST', `/projects/${projectId}/selection`, {
-      token: homeowner.token,
-      body: { bidId: second.body.id },
-    });
+    // Only a quote can be picked.
+    const third = await invite(homeowner.token, dear.id);
+    assert.equal(third.status, 201);
+    const early = await api.call('POST', `/projects/${projectId}/selection`, { token: homeowner.token, body: { invitationId: third.body.id } });
+    assert.equal(early.status, 409);
+    assert.match(early.body.message, /Only a quote can be picked/);
+    assert.equal((await api.call('GET', `/projects/${projectId}`, { token: homeowner.token })).body.status, 'open');
+
+    // The pick: the project is awarded, the others are not selected, and only now do the two see each other's contact (D7).
+    const picked = await api.call('POST', `/projects/${projectId}/selection`, { token: homeowner.token, body: { invitationId: second.body.id } });
     assert.equal(picked.status, 200, JSON.stringify(picked.body));
     assert.equal(picked.body.status, 'awarded');
-    assert.equal(picked.body.selectedBid.id, second.body.id);
-    assert.equal(picked.body.selectedBid.contact.phone, cheap.phone);
-    assert.equal(picked.body.selectedBid.link, `${SITE_URL}/projects/${projectId}/bids/${second.body.id}`);
+    assert.equal(picked.body.selected.invitationId, second.body.id);
+    assert.equal(picked.body.selected.companyName, '低调装饰');
+    assert.equal(picked.body.selected.contact.phone, quiet.phone);
+    assert.equal(picked.body.selected.link, `${SITE_URL}/invitations/${second.body.id}`);
+    assert.equal(picked.body.liveInvitations, 0);
+    assert.equal(picked.body.quoteCount, 2);
 
-    const afterPick = await api.call('GET', `/projects/${projectId}/bids`, { token: homeowner.token });
-    const byName = Object.fromEntries(afterPick.body.map((b: { contractor: { companyName: string } }) => [b.contractor.companyName, b]));
-    assert.equal(byName['实惠装饰'].status, 'selected');
-    assert.equal(byName['实惠装饰'].contact.phone, cheap.phone);
+    const after = await api.call('GET', `/projects/${projectId}/invitations`, { token: homeowner.token });
+    const byName = Object.fromEntries(after.body.map((i: { contractor: { companyName: string } }) => [i.contractor.companyName, i]));
+    assert.equal(byName['低调装饰'].status, 'selected');
+    assert.equal(byName['低调装饰'].contact.phone, quiet.phone);
     assert.equal(byName['近邻装饰'].status, 'not-selected');
     assert.equal(byName['近邻装饰'].contact, null);
+    assert.equal(byName['高端装饰'].status, 'not-selected');
 
-    const winnerBids = await api.call('GET', '/bids/mine', { token: cheap.token });
-    assert.equal(winnerBids.body[0].homeowner.phone, homeowner.phone);
-    assert.equal((await api.call('GET', `/projects/${projectId}`, { token: cheap.token })).body.homeowner.phone, homeowner.phone);
-    const loserView = await api.call('GET', `/projects/${projectId}`, { token: near.token });
-    assert.equal(loserView.status, 200);
-    assert.equal(loserView.body.homeowner, null);
-    assert.equal(loserView.body.myBid.status, 'not-selected');
+    const winner = await api.call('GET', '/invitations/mine', { token: quiet.token });
+    assert.equal(winner.body[0].status, 'selected');
+    assert.equal(winner.body[0].homeowner.phone, homeowner.phone);
+    const loser = await api.call('GET', `/invitations/${first.body.id}`, { token: best.token });
+    assert.equal(loser.status, 200);
+    assert.equal(loser.body.status, 'not-selected');
+    assert.equal(loser.body.homeowner, null);
+    const seenByLoser = JSON.stringify(loser.body);
+    for (const secret of [quiet.phone, homeowner.phone, '低调装饰', '148000']) {
+      assert.equal(seenByLoser.includes(secret), false, `a team that was not picked is told nothing about the winner: ${secret}`);
+    }
 
-    assert.equal((await api.call('PUT', `/bids/${first.body.id}`, { token: near.token, body: bid() })).status, 409);
+    // After the pick nothing changes.
+    assert.equal((await api.call('PUT', `/invitations/${first.body.id}/quote`, { token: best.token, body: quote() })).status, 409);
     assert.equal(
-      (await api.call('POST', `/projects/${projectId}/selection`, { token: homeowner.token, body: { bidId: first.body.id } })).status,
+      (await api.call('POST', `/projects/${projectId}/selection`, { token: homeowner.token, body: { invitationId: first.body.id } })).status,
       409,
     );
-    const late = await verifiedContractor('迟到装饰', { companyName: '迟到装饰' });
-    assert.equal((await api.call('POST', `/projects/${projectId}/bids`, { token: late.token, body: bid() })).status, 404);
+    const late = await team(city, '迟到装饰');
+    assert.equal((await invite(homeowner.token, late.id)).status, 409);
+    assert.equal((await api.call('GET', `/projects/${projectId}/matches`, { token: homeowner.token })).status, 409);
   });
 
-  test('closing a project without a pick marks the waiting bids not selected', async () => {
+  test('at most 3 invitations are open at once; a decline or a lapse frees a place; a team is invited once', async () => {
+    const city = '杭州';
+    const homeowner = await register('homeowner', '林先生');
+    const a = await team(city, '甲装饰');
+    const b = await team(city, '乙装饰');
+    const c = await team(city, '丙装饰');
+    const d = await team(city, '丁装饰');
+    const e = await team(city, '戊装饰');
+    const project = await api.call('POST', '/projects', { token: homeowner.token, body: projectIn(city) });
+    const projectId = project.body.id as string;
+    const invite = (contractorId: string) =>
+      api.call('POST', `/projects/${projectId}/invitations`, { token: homeowner.token, body: { contractorId } });
+    const live = async () => (await api.call('GET', `/projects/${projectId}`, { token: homeowner.token })).body.liveInvitations;
+
+    const ia = await invite(a.id);
+    const ib = await invite(b.id);
+    const ic = await invite(c.id);
+    for (const sent of [ia, ib, ic]) assert.equal(sent.status, 201, JSON.stringify(sent.body));
+    const full = await invite(d.id);
+    assert.equal(full.status, 409);
+    assert.match(full.body.message, /3 invitations open/);
+    assert.equal(await live(), 3);
+
+    // A decline frees a place, and the reason reaches the homeowner.
+    const declined = await api.call('POST', `/invitations/${ia.body.id}/decline`, { token: a.token, body: { reason: '这个月排期已满' } });
+    assert.equal(declined.status, 200, JSON.stringify(declined.body));
+    assert.equal(declined.body.status, 'declined');
+    const seen = await api.call('GET', `/invitations/${ia.body.id}`, { token: homeowner.token });
+    assert.equal(seen.body.status, 'declined');
+    assert.equal(seen.body.declineReason, '这个月排期已满');
+    assert.equal(await live(), 2);
+    assert.equal((await api.call('POST', `/invitations/${ia.body.id}/decline`, { token: a.token, body: {} })).status, 409);
+    assert.equal((await api.call('PUT', `/invitations/${ia.body.id}/quote`, { token: a.token, body: quote() })).status, 409);
+    assert.equal((await invite(a.id)).status, 409, 'a team that declined is not invited again');
+    assert.equal((await invite(d.id)).status, 201);
+    assert.equal((await invite(e.id)).status, 409);
+
+    // A team that has quoted can no longer decline: the homeowner decides.
+    assert.equal((await api.call('PUT', `/invitations/${ic.body.id}/quote`, { token: c.token, body: quote() })).status, 200);
+    const tooLate = await api.call('POST', `/invitations/${ic.body.id}/decline`, { token: c.token, body: {} });
+    assert.equal(tooLate.status, 409);
+    assert.match(tooLate.body.message, /already sent a quote/);
+
+    // An invitation nobody answers lapses after 7 days: it reads as expired, can't be answered, and frees its place.
+    await api.db
+      .update(invitations)
+      .set({ expiresAt: new Date(Date.now() - 60_000) })
+      .where(eq(invitations.id, ib.body.id));
+    const lapsed = await api.call('GET', `/invitations/${ib.body.id}`, { token: b.token });
+    assert.equal(lapsed.body.status, 'expired');
+    assert.equal((await api.call('GET', `/invitations/${ib.body.id}`, { token: homeowner.token })).body.status, 'expired');
+    const answer = await api.call('PUT', `/invitations/${ib.body.id}/quote`, { token: b.token, body: quote() });
+    assert.equal(answer.status, 409);
+    assert.match(answer.body.message, /expired/);
+    assert.equal((await api.call('POST', `/invitations/${ib.body.id}/decline`, { token: b.token, body: {} })).status, 409);
+    assert.equal(await live(), 2);
+    assert.equal((await invite(e.id)).status, 201);
+    assert.equal(await live(), 3);
+  });
+
+  test('invitations sent at the same moment still respect the limit of 3', async () => {
+    const city = '长沙';
+    const homeowner = await register('homeowner', '何先生');
+    const teams = [];
+    for (const name of ['一号装饰', '二号装饰', '三号装饰', '四号装饰', '五号装饰']) teams.push(await team(city, name));
+    const project = await api.call('POST', '/projects', { token: homeowner.token, body: projectIn(city) });
+    const sent = await Promise.all(
+      teams.map((t) => api.call('POST', `/projects/${project.body.id}/invitations`, { token: homeowner.token, body: { contractorId: t.id } })),
+    );
+    assert.deepEqual(sent.map((r) => r.status).sort(), [201, 201, 201, 409, 409]);
+  });
+
+  test('a team is not invited beyond the projects it can take at once', async () => {
+    const city = '南京';
+    const busy = await team(city, '忙碌装饰', { maxConcurrentProjects: 1 });
+    const one = await register('homeowner', '周先生');
+    const two = await register('homeowner', '吴女士');
+    const p1 = await api.call('POST', '/projects', { token: one.token, body: projectIn(city) });
+    const p2 = await api.call('POST', '/projects', { token: two.token, body: projectIn(city) });
+    const inviteToSecond = () =>
+      api.call('POST', `/projects/${p2.body.id}/invitations`, { token: two.token, body: { contractorId: busy.id } });
+
+    const held = await api.call('POST', `/projects/${p1.body.id}/invitations`, { token: one.token, body: { contractorId: busy.id } });
+    assert.equal(held.status, 201);
+    assert.deepEqual((await api.call('GET', `/projects/${p2.body.id}/matches`, { token: two.token })).body, []);
+    const refused = await inviteToSecond();
+    assert.equal(refused.status, 409);
+    assert.match(refused.body.message, /as it can take/);
+
+    // A quote still holds the place until the homeowner decides.
+    assert.equal((await api.call('PUT', `/invitations/${held.body.id}/quote`, { token: busy.token, body: quote() })).status, 200);
+    assert.equal((await inviteToSecond()).status, 409);
+
+    // Ending the first search frees it.
+    assert.equal((await api.call('POST', `/projects/${p1.body.id}/close`, { token: one.token })).status, 200);
+    assert.deepEqual(names((await api.call('GET', `/projects/${p2.body.id}/matches`, { token: two.token })).body), ['忙碌装饰']);
+    assert.equal((await inviteToSecond()).status, 201);
+  });
+
+  test('ending the search without a pick marks the open invitations not selected', async () => {
+    const city = '成都';
     const homeowner = await register('homeowner', '吴先生');
-    const contractor = await verifiedContractor('关门装饰', { companyName: '关门装饰' });
-    const project = await api.call('POST', '/projects', { token: homeowner.token, body: requirements({ title: '卫生间局部改造', renovationType: 'partial' }) });
-    const offer = await api.call('POST', `/projects/${project.body.id}/bids`, { token: contractor.token, body: bid() });
-    assert.equal(offer.status, 201);
-    const closed = await api.call('POST', `/projects/${project.body.id}/close`, { token: homeowner.token });
+    const waiting = await team(city, '等候装饰');
+    const quoting = await team(city, '报价装饰');
+    const declining = await team(city, '婉拒装饰');
+    const project = await api.call('POST', '/projects', {
+      token: homeowner.token,
+      body: projectIn(city, { title: '卫生间局部改造', renovationType: 'partial' }),
+    });
+    const projectId = project.body.id as string;
+    const invite = (contractorId: string) =>
+      api.call('POST', `/projects/${projectId}/invitations`, { token: homeowner.token, body: { contractorId } });
+    const w = await invite(waiting.id);
+    const q = await invite(quoting.id);
+    const x = await invite(declining.id);
+    for (const sent of [w, q, x]) assert.equal(sent.status, 201, JSON.stringify(sent.body));
+    assert.equal((await api.call('PUT', `/invitations/${q.body.id}/quote`, { token: quoting.token, body: quote() })).status, 200);
+    assert.equal((await api.call('POST', `/invitations/${x.body.id}/decline`, { token: declining.token, body: {} })).status, 200);
+
+    const closed = await api.call('POST', `/projects/${projectId}/close`, { token: homeowner.token });
     assert.equal(closed.status, 200);
     assert.equal(closed.body.status, 'closed');
     assert.ok(closed.body.closedAt);
-    assert.equal((await api.call('GET', `/bids/${offer.body.id}`, { token: contractor.token })).body.status, 'not-selected');
-    assert.equal((await api.call('POST', `/projects/${project.body.id}/close`, { token: homeowner.token })).status, 409);
+    assert.equal(closed.body.liveInvitations, 0);
+    const statusOf = async (token: string, id: string) => (await api.call('GET', `/invitations/${id}`, { token })).body.status;
+    assert.equal(await statusOf(waiting.token, w.body.id), 'not-selected');
+    assert.equal(await statusOf(quoting.token, q.body.id), 'not-selected');
+    assert.equal(await statusOf(declining.token, x.body.id), 'declined');
+
+    assert.equal((await api.call('PUT', `/invitations/${q.body.id}/quote`, { token: quoting.token, body: quote() })).status, 409);
+    assert.equal((await api.call('POST', `/invitations/${w.body.id}/decline`, { token: waiting.token, body: {} })).status, 409);
+    assert.equal((await invite(waiting.id)).status, 409);
+    assert.equal((await api.call('GET', `/projects/${projectId}/matches`, { token: homeowner.token })).status, 409);
+    assert.equal(
+      (await api.call('POST', `/projects/${projectId}/selection`, { token: homeowner.token, body: { invitationId: q.body.id } })).status,
+      409,
+    );
+    assert.equal((await api.call('POST', `/projects/${projectId}/close`, { token: homeowner.token })).status, 409);
   });
 
   test('refuses contact details, impossible budgets and dates, and the wrong kind of account', async () => {
+    const city = '武汉';
     const homeowner = await register('homeowner', '郑女士');
-    const contractor = await verifiedContractor('规则装饰', { companyName: '规则装饰' });
+    const contractor = await team(city, '规则装饰');
     for (const overrides of [
       { description: '请直接联系我 138 0013 9999，谢谢配合' },
       { description: '图纸发到 me@example.com 就行，谢谢' },
@@ -366,52 +616,99 @@ describe('projects, bids and the pick', () => {
       { desiredStart: dateInChina(-1) },
       { desiredStart: '2027-02-30' },
       { floorAreaM2: '98' },
-      { biddingDays: 60 },
+      { style: '现代简约' },
+      { biddingDays: 7 },
     ]) {
-      const { status } = await api.call('POST', '/projects', { token: homeowner.token, body: requirements(overrides) });
+      const { status } = await api.call('POST', '/projects', { token: homeowner.token, body: projectIn(city, overrides) });
       assert.equal(status, 400, JSON.stringify(overrides));
     }
-    assert.equal((await api.call('POST', '/projects', { token: contractor.token, body: requirements() })).status, 403);
+    assert.equal((await api.call('POST', '/projects', { token: contractor.token, body: projectIn(city) })).status, 403);
 
-    const project = await api.call('POST', '/projects', { token: homeowner.token, body: requirements() });
-    const path = `/projects/${project.body.id}/bids`;
+    const project = await api.call('POST', '/projects', { token: homeowner.token, body: projectIn(city) });
+    const projectId = project.body.id as string;
+    for (const body of [
+      { contractorId: contractor.id, message: '加我 13700137000 细聊' },
+      { contractorId: 'not-a-uuid' },
+      { contractorId: contractor.id, price: 1 },
+    ]) {
+      const { status } = await api.call('POST', `/projects/${projectId}/invitations`, { token: homeowner.token, body });
+      assert.equal(status, 400, JSON.stringify(body));
+    }
+    const invited = await api.call('POST', `/projects/${projectId}/invitations`, { token: homeowner.token, body: { contractorId: contractor.id } });
+    assert.equal(invited.status, 201);
+
+    const quotePath = `/invitations/${invited.body.id}/quote`;
     for (const overrides of [
       { labourCny: 150_000, materialsCny: 100_000 },
-      { message: '有问题打我电话 13700137000' },
+      { note: '有问题打我电话 13700137000' },
+      { mainMaterials: '详情发 me@example.com' },
       { earliestStart: dateInChina(-3) },
       { priceCny: '180000' },
+      { priceCny: 500 },
+      { durationDays: 0 },
+      { message: '不是报价的字段' },
     ]) {
-      const { status } = await api.call('POST', path, { token: contractor.token, body: bid(overrides) });
+      const { status } = await api.call('PUT', quotePath, { token: contractor.token, body: quote(overrides) });
       assert.equal(status, 400, JSON.stringify(overrides));
     }
-    assert.equal((await api.call('POST', path, { token: homeowner.token, body: bid() })).status, 403);
+    const declineRefused = await api.call('POST', `/invitations/${invited.body.id}/decline`, {
+      token: contractor.token,
+      body: { reason: '微信 13600136000' },
+    });
+    assert.equal(declineRefused.status, 400);
+
+    assert.equal((await api.call('PUT', quotePath, { token: homeowner.token, body: quote() })).status, 403);
+    assert.equal((await api.call('GET', `/projects/${projectId}/matches`, { token: contractor.token })).status, 403);
+    assert.equal((await api.call('GET', '/projects/open', { token: contractor.token })).status, 403, 'there is no board of open projects');
     assert.equal((await api.call('GET', '/projects/not-a-uuid', { token: homeowner.token })).status, 400);
+    assert.equal((await api.call('POST', `/projects/${projectId}/bids`, { token: contractor.token, body: {} })).status, 404, 'open bidding is gone');
+    assert.equal((await api.call('GET', '/bids/mine', { token: contractor.token })).status, 404, 'open bidding is gone');
   });
 });
 
 describe('your admin routes', () => {
-  test('need the admin key; suspending a contractor hides their bids and stops them bidding', async () => {
+  test('need the admin key; suspending a team hides its invitations and stops it answering', async () => {
     assert.equal((await api.call('GET', '/admin/contractors')).status, 401);
     assert.equal((await api.call('GET', '/admin/contractors', { admin: 'wrong-key-wrong-key-wrong-key' })).status, 401);
 
+    const city = '宁波';
     const homeowner = await register('homeowner', '钱女士');
-    const contractor = await verifiedContractor('停用装饰', { companyName: '停用装饰' });
-    const project = await api.call('POST', '/projects', { token: homeowner.token, body: requirements() });
-    const offer = await api.call('POST', `/projects/${project.body.id}/bids`, { token: contractor.token, body: bid() });
-    assert.equal((await api.call('GET', `/projects/${project.body.id}`, { token: homeowner.token })).body.bidCount, 1);
+    const contractor = await team(city, '停用装饰');
+    const project = await api.call('POST', '/projects', { token: homeowner.token, body: projectIn(city) });
+    const projectId = project.body.id as string;
+    const invited = await api.call('POST', `/projects/${projectId}/invitations`, { token: homeowner.token, body: { contractorId: contractor.id } });
+    assert.equal(invited.status, 201);
+    assert.equal((await api.call('PUT', `/invitations/${invited.body.id}/quote`, { token: contractor.token, body: quote() })).status, 200);
+    const before = (await api.call('GET', `/projects/${projectId}`, { token: homeowner.token })).body;
+    assert.equal(before.quoteCount, 1);
+    assert.equal(before.liveInvitations, 1);
 
     const suspended = await api.call('POST', `/admin/contractors/${contractor.id}/review`, {
       admin: api.adminKey,
       body: { decision: 'suspended', note: '投诉核实' },
     });
     assert.equal(suspended.body.status, 'suspended');
-    assert.equal((await api.call('GET', `/projects/${project.body.id}/bids`, { token: homeowner.token })).body.length, 0);
-    assert.equal((await api.call('GET', `/projects/${project.body.id}`, { token: homeowner.token })).body.bidCount, 0);
+    assert.equal((await api.call('GET', `/projects/${projectId}/invitations`, { token: homeowner.token })).body.length, 0);
+    assert.equal((await api.call('GET', `/invitations/${invited.body.id}`, { token: homeowner.token })).status, 404);
+    const after = (await api.call('GET', `/projects/${projectId}`, { token: homeowner.token })).body;
+    assert.equal(after.quoteCount, 0);
+    assert.equal(after.liveInvitations, 0, 'a suspended team does not hold one of the 3 places');
     assert.equal(
-      (await api.call('POST', `/projects/${project.body.id}/selection`, { token: homeowner.token, body: { bidId: offer.body.id } })).status,
+      (await api.call('POST', `/projects/${projectId}/selection`, { token: homeowner.token, body: { invitationId: invited.body.id } })).status,
       409,
     );
-    assert.match((await api.call('GET', '/projects/open', { token: contractor.token })).body.message, /suspended/);
+
+    const another = await api.call('POST', '/projects', { token: homeowner.token, body: projectIn(city) });
+    assert.deepEqual((await api.call('GET', `/projects/${another.body.id}/matches`, { token: homeowner.token })).body, []);
+    assert.equal(
+      (await api.call('POST', `/projects/${another.body.id}/invitations`, { token: homeowner.token, body: { contractorId: contractor.id } })).status,
+      404,
+    );
+
+    const answer = await api.call('PUT', `/invitations/${invited.body.id}/quote`, { token: contractor.token, body: quote() });
+    assert.equal(answer.status, 403);
+    assert.match(answer.body.message, /suspended/);
+    assert.equal((await api.call('GET', '/invitations/mine', { token: contractor.token })).body.length, 1, 'the team can still read its history');
     const resaved = await api.call('PUT', '/contractors/me', { token: contractor.token, body: application({ licenceNumber: '91310115MA1K4A2B3G' }) });
     assert.equal(resaved.body.status, 'suspended');
   });

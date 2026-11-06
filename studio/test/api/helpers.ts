@@ -5,7 +5,7 @@ import { randomBytes } from 'node:crypto';
 import type { AddressInfo } from 'node:net';
 import { createApp } from '../../src/api/app.ts';
 import type { StudioConfig } from '../../src/api/config.ts';
-import { openDatabase } from '../../src/api/db/database.ts';
+import { openDatabase, type Db } from '../../src/api/db/database.ts';
 
 export const SITE_URL = 'https://irenovation.test';
 
@@ -17,6 +17,8 @@ export interface CallOptions {
 
 export interface Api {
   adminKey: string;
+  /** For what no route can do, such as letting an invitation lapse. */
+  db: Db;
   call(method: string, path: string, options?: CallOptions): Promise<{ status: number; body: any }>;
   close(): Promise<void>;
 }
@@ -37,6 +39,7 @@ export async function startApi({ rateLimits = false, adminKey = randomBytes(24).
   const base = `http://127.0.0.1:${port}/api`;
   return {
     adminKey,
+    db: database.db,
     async call(method, path, { token, admin, body } = {}) {
       const headers: Record<string, string> = {};
       if (token) headers.authorization = `Bearer ${token}`;

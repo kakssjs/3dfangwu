@@ -6,10 +6,10 @@ import { APP_GUARD, NestFactory } from '@nestjs/core';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { AuthModule } from './auth/auth.module.ts';
-import { BiddingModule } from './bidding/bidding.module.ts';
 import type { StudioConfig } from './config.ts';
 import { ContractorsModule } from './contractors/contractors.module.ts';
 import type { Database } from './db/database.ts';
+import { MatchingModule } from './matching/matching.module.ts';
 import { CONFIG, DB } from './tokens.ts';
 
 /** The settings and the database, for every module. */
@@ -39,7 +39,7 @@ export class AppModule {
         ThrottlerModule.forRoot({ throttlers: [{ name: 'default', ttl: 60_000, limit: 120 }], skipIf: () => !rateLimits }),
         AuthModule,
         ContractorsModule,
-        BiddingModule,
+        MatchingModule,
       ],
       providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
     };

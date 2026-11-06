@@ -3,7 +3,7 @@ import { LANGUAGES, PHONE, ROLES, type Language, type Role } from '../domain.ts'
 import { NormalizePhone, Trim } from '../validation.ts';
 
 export class RegisterDto {
-  /** `homeowner` to post renovations, `contractor` to bid on them. */
+  /** `homeowner` to post renovations, `contractor` to take the work. */
   @IsIn(ROLES)
   role!: Role;
 

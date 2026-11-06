@@ -16,7 +16,7 @@ function findStudioDir(start: string): string {
 export interface StudioConfig {
   host: string;
   port: number;
-  /** Our site's address. Project and bid links point there (the interface, D15). */
+  /** Our site's address. Project and invitation links point there (the interface, D15). */
   siteUrl: string;
   /** Signs sign-in tokens. Changing it signs everyone out. */
   jwtSecret: string;

@@ -1,8 +1,8 @@
-import { ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { and, arrayContains, asc, desc, eq, type SQL } from 'drizzle-orm';
 import type { Db } from '../db/database.ts';
 import { contractorProfiles, users, type ContractorProfile, type PastProject, type Qualification } from '../db/schema.ts';
-import type { ContractorKind, ContractorStatus, RenovationType } from '../domain.ts';
+import type { ContractorKind, ContractorStatus, DesignStyle, RenovationType } from '../domain.ts';
 import { DB } from '../tokens.ts';
 import type { AdminContractorQueryDto, ContractorProfileDto, ContractorSearchDto, ReviewContractorDto } from './contractors.dto.ts';
 
@@ -16,6 +16,10 @@ export interface PublicProfile {
   city: string;
   districts: string[];
   renovationTypes: RenovationType[];
+  styles: DesignStyle[];
+  /** What a full renovation usually costs with them, per m² of floor area, in CNY (both null if not stated). */
+  priceMinCnyPerM2: number | null;
+  priceMaxCnyPerM2: number | null;
   yearsInBusiness: number;
   teamSize: number;
   description: string;
@@ -62,6 +66,9 @@ export class ContractorsService {
    * is reviewed again; a verified one only when a checked fact changes. A suspended one stays suspended.
    */
   async saveOwn(userId: string, dto: ContractorProfileDto): Promise<OwnProfile> {
+    if (dto.priceMinCnyPerM2 !== undefined && dto.priceMaxCnyPerM2 !== undefined && dto.priceMinCnyPerM2 > dto.priceMaxCnyPerM2) {
+      throw new BadRequestException('priceMinCnyPerM2 must not be more than priceMaxCnyPerM2');
+    }
     const values = {
       companyName: dto.companyName,
       kind: dto.kind,
@@ -74,6 +81,9 @@ export class ContractorsService {
       city: dto.city,
       districts: dto.districts,
       renovationTypes: dto.renovationTypes,
+      styles: dto.styles ?? [],
+      priceMinCnyPerM2: dto.priceMinCnyPerM2 ?? null,
+      priceMaxCnyPerM2: dto.priceMaxCnyPerM2 ?? null,
       yearsInBusiness: dto.yearsInBusiness,
       teamSize: dto.teamSize,
       maxConcurrentProjects: dto.maxConcurrentProjects,
@@ -131,9 +141,9 @@ export class ContractorsService {
     if (!profile) throw new ForbiddenException('Apply first: send your company details to PUT /api/contractors/me');
     if (profile.status === 'verified') return profile;
     const why: Record<Exclude<ContractorStatus, 'verified'>, string> = {
-      pending: 'Your application is waiting for review. You can see and bid on projects once it is verified',
+      pending: 'Your application is waiting for review. Homeowners can match and invite you once it is verified',
       rejected: 'Your application was not approved. See the review note, fix it and save it again',
-      suspended: 'Your account is suspended, so you cannot see or bid on projects',
+      suspended: 'Your account is suspended, so homeowners cannot invite you and you cannot answer invitations',
     };
     throw new ForbiddenException(why[profile.status]);
   }
@@ -188,6 +198,9 @@ export function publicProfile(profile: ContractorProfile): PublicProfile {
     city: profile.city,
     districts: profile.districts,
     renovationTypes: profile.renovationTypes,
+    styles: profile.styles,
+    priceMinCnyPerM2: profile.priceMinCnyPerM2,
+    priceMaxCnyPerM2: profile.priceMaxCnyPerM2,
     yearsInBusiness: profile.yearsInBusiness,
     teamSize: profile.teamSize,
     description: profile.description,
