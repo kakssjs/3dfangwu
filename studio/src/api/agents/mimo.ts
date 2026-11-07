@@ -17,6 +17,8 @@ export interface MimoToolSpec {
 export interface MimoMessage {
   role: 'system' | 'user' | 'assistant' | 'tool';
   content: string;
+  /** Images the model should look at (N4 reads floor-plan photos), each a `data:` URL. */
+  images?: string[];
   /** On an assistant message: the tool calls it made, echoed back on the next turn. */
   toolCalls?: MimoToolCall[];
   /** On a tool result: which call it answers, and the tool's name. */
@@ -37,7 +39,12 @@ export interface MimoResponse {
   usage: TaskUsage;
 }
 
-export type MimoTransport = (messages: MimoMessage[], tools: MimoToolSpec[]) => Promise<MimoResponse>;
+export interface MimoChatOptions {
+  /** This call's own time limit. Reading a floor plan and writing its JSON can take minutes. */
+  timeoutMs?: number;
+}
+
+export type MimoTransport = (messages: MimoMessage[], tools: MimoToolSpec[], options?: MimoChatOptions) => Promise<MimoResponse>;
 
 /** MiMo is down, slow, out of credits, or answered something we can't read. The task waits. */
 export class MimoError extends Error {}
@@ -52,9 +59,9 @@ export class MimoClient {
     this.transport = transport;
   }
 
-  async chat(messages: MimoMessage[], tools: MimoToolSpec[]): Promise<MimoResponse> {
+  async chat(messages: MimoMessage[], tools: MimoToolSpec[], options?: MimoChatOptions): Promise<MimoResponse> {
     try {
-      return await this.transport(messages, tools);
+      return await this.transport(messages, tools, options);
     } catch (error) {
       if (error instanceof MimoError) throw error;
       throw new MimoError(error instanceof Error ? error.message : String(error));
@@ -66,11 +73,13 @@ export interface MimoSettings {
   apiKey: string;
   baseUrl: string;
   model: string;
+  /** Time limit for one call (default 2 minutes). */
+  timeoutMs?: number;
 }
 
 /** The real transport: `POST {baseUrl}/chat/completions` with the OpenAI-style shape. */
 export function httpTransport(settings: MimoSettings): MimoTransport {
-  return async (messages, tools) => {
+  return async (messages, tools, options) => {
     if (!settings.apiKey || !settings.baseUrl) {
       throw new MimoError('MIMO_API_KEY or MIMO_BASE_URL is not set: the agents wait until both are');
     }
@@ -81,13 +90,16 @@ export function httpTransport(settings: MimoSettings): MimoTransport {
         model: settings.model,
         messages: messages.map((m) => ({
           role: m.role,
-          content: m.content,
+          // With images the content is the usual parts list: the text first, then each picture.
+          content: m.images?.length
+            ? [{ type: 'text', text: m.content }, ...m.images.map((url) => ({ type: 'image_url', image_url: { url } }))]
+            : m.content,
           ...(m.toolCalls ? { tool_calls: m.toolCalls.map((c) => ({ id: c.id, type: 'function', function: { name: c.name, arguments: c.arguments } })) } : {}),
           ...(m.toolCallId ? { tool_call_id: m.toolCallId, name: m.name } : {}),
         })),
         tools: tools.map((t) => ({ type: 'function', function: t })),
       }),
-      signal: AbortSignal.timeout(120_000),
+      signal: AbortSignal.timeout(options?.timeoutMs ?? settings.timeoutMs ?? 120_000),
     });
     if (!response.ok) throw new MimoError(`MiMo answered ${response.status}`);
     const body = (await response.json()) as {
@@ -102,7 +114,7 @@ export function httpTransport(settings: MimoSettings): MimoTransport {
       usage: {
         inputTokens: body.usage?.prompt_tokens ?? 0,
         outputTokens: body.usage?.completion_tokens ?? 0,
-        images: 0,
+        images: messages.reduce((n, m) => n + (m.images?.length ?? 0), 0),
       },
     };
   };

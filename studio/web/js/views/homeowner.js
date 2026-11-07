@@ -1,14 +1,14 @@
 // Homeowner screens: my projects, a new project, matches, invitations and quotes, the pick, and
 // browsing verified contractors (WORKFLOW.md 9.2).
 
-import { api, query } from '../api.js';
+import { api, query, session } from '../api.js';
 import { h } from '../dom.js';
 import { label, t } from '../i18n.js';
 import { go } from '../router.js';
 import { communityPicker } from '../map.js';
-import { avatar, empty, icon, placePicker, stageTracker, uploadBox } from '../ui.js';
+import { avatar, empty, icon, placePicker, stageTracker, toBase64, uploadBox } from '../ui.js';
 import {
-  STYLES, TYPES, briefFacts, cny, errorBox, facts, field, input, link, loading, noteBox, num, onSubmit, options, profileCard, quoteBlock, range, reasonList, sectionHead, select, statusChip, str, textarea, timeLeft,
+  STYLES, TYPES, briefFacts, chip, cny, errorBox, facts, field, input, link, loading, noteBox, num, onSubmit, options, profileCard, quoteBlock, range, reasonList, sectionHead, select, statusChip, str, textarea, timeLeft,
 } from './common.js';
 
 const MAX_LIVE = 3;
@@ -245,4 +245,91 @@ export async function browse(ctx) {
 export async function browseDetail(ctx) {
   const profile = await api('GET', `/contractors/${ctx.args.id}`);
   return h('section', { class: 'stack' }, link('/browse', t('back')), h('div', { class: 'card' }, profileCard(profile)));
+}
+
+// ---- My homes (F1, F6, N4): the plan photo, the reading and the home's 3D link ----
+
+/** An image behind the sign-in (the overlay): fetched with the token, shown from a blob URL. */
+async function authImage(url) {
+  const res = await fetch(url, { headers: { authorization: `Bearer ${session.token}` } });
+  return res.ok ? URL.createObjectURL(await res.blob()) : null;
+}
+
+function homeOverlay(home) {
+  const img = h('img', { class: 'home-overlay', alt: t('homes.overlay'), loading: 'lazy' });
+  authImage(`/api/homes/${home.id}/plan-overlay.svg`)
+    .then((url) => url && (img.src = url))
+    .catch(() => {});
+  return img;
+}
+
+export async function homesList() {
+  const homes = await api('GET', '/homes/mine');
+  return h(
+    'section',
+    {},
+    h('div', { class: 'page-head' }, h('h1', {}, t('homes.mine')), link('/homes/new', [icon('plus'), t('homes.new')], 'btn primary')),
+    homes.length === 0
+      ? empty('build', t('homes.empty.title'), t('homes.empty'), link('/homes/new', [icon('plus'), t('homes.new')], 'btn primary'))
+      : h(
+          'div',
+          { class: 'stack' },
+          homes.map((home) =>
+            h(
+              'div',
+              { class: 'card' },
+              h('div', { class: 'card-head' }, h('h3', {}, home.name), home.confirmedDesign ? chip('ok', t('homes.confirmed')) : null),
+              homeOverlay(home),
+              h(
+                'div',
+                { class: 'actions' },
+                h('a', { href: home.link, class: 'btn primary', target: '_blank', rel: 'noopener' }, icon('build'), t('homes.open3d')),
+              ),
+            ),
+          ),
+        ),
+  );
+}
+
+export async function homeNew() {
+  const nameInput = input('name', { maxlength: 120 });
+  const file = h('input', { type: 'file', accept: 'image/jpeg,image/png,image/webp', required: true });
+  const box = h('div', { role: 'status' });
+  const form = h(
+    'form',
+    { class: 'card' },
+    h('h1', {}, t('homes.new')),
+    noteBox('info', t('homes.note')),
+    field(t('homes.name'), nameInput),
+    field(t('homes.photo'), file),
+    box,
+    h('div', { class: 'actions' }, h('button', { class: 'btn primary', type: 'submit' }, t('homes.read')), link('/homes', t('back'))),
+  );
+  const wrap = h('div', {}, form);
+  onSubmit(form, box, async () => {
+    const picked = file.files[0];
+    if (!picked) return;
+    box.replaceChildren(loading(), h('p', { class: 'muted small' }, t('homes.reading')));
+    const upload = await api('POST', '/uploads', {
+      body: { filename: picked.name.replace(/[/\\]/g, '_'), contentType: picked.type, dataBase64: await toBase64(picked) },
+    });
+    const home = await api('POST', '/homes/from-image', { body: { uploadId: upload.id, ...(nameInput.value ? { name: nameInput.value } : {}) } });
+    wrap.replaceChildren(
+      h(
+        'div',
+        { class: 'card' },
+        h('h1', {}, t('homes.result')),
+        homeOverlay(home),
+        h('p', { class: 'muted small' }, t('homes.stats', { rooms: home.plan.rooms.length, walls: home.plan.walls.length })),
+        noteBox('info', t('homes.check')),
+        h(
+          'div',
+          { class: 'actions' },
+          h('a', { href: home.link, class: 'btn primary', target: '_blank', rel: 'noopener' }, icon('build'), t('homes.open3d')),
+          link('/homes', t('homes.mine')),
+        ),
+      ),
+    );
+  });
+  return h('section', {}, wrap);
 }

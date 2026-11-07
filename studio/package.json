@@ -9,7 +9,7 @@
     "node": ">=24"
   },
   "scripts": {
-    "test": "npm run build && node --disable-warning=ExperimentalWarning --test \"test/*.test.ts\" \"dist/test/api/*.test.js\"",
+    "test": "npm run build && node --disable-warning=ExperimentalWarning --test --test-concurrency=3 \"test/*.test.ts\" \"dist/test/api/*.test.js\"",
     "test:postgres": "npm run build && node --disable-warning=ExperimentalWarning scripts/test-postgres.ts",
     "test:live": "node --disable-warning=ExperimentalWarning --test \"test/live/*.test.ts\"",
     "typecheck": "tsc -p .",

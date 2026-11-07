@@ -39,6 +39,15 @@ export interface StudioConfig {
   /** The MiMo endpoint, from the model access docs (模型接入文档). */
   mimoBaseUrl: string;
   mimoModel: string;
+  /** The Doubao (豆包, 火山方舟) vision API: your approved backup reader for floor plans (N4, D9). */
+  doubaoApiKey: string;
+  /** The Ark endpoint, OpenAI-style like MiMo's. */
+  doubaoBaseUrl: string;
+  doubaoModel: string;
+  /** Agnes AI, the second backup reader you named (N4). OpenAI-style; it works once its base URL is set. */
+  agnesApiKey: string;
+  agnesBaseUrl: string;
+  agnesModel: string;
 }
 
 /** Reads the settings from the environment (`.env.local` is loaded first by `main.ts`). */
@@ -64,5 +73,11 @@ export function loadConfig(env: NodeJS.ProcessEnv): StudioConfig {
     mimoApiKey: env.MIMO_API_KEY ?? '',
     mimoBaseUrl: env.MIMO_BASE_URL ?? '',
     mimoModel: env.MIMO_MODEL || 'MiMo-V2.6-Pro',
+    doubaoApiKey: env.DOUBAO_API_KEY ?? '',
+    doubaoBaseUrl: env.DOUBAO_BASE_URL || 'https://ark.cn-beijing.volces.com/api/v3',
+    doubaoModel: env.DOUBAO_MODEL || 'doubao-seed-2-1-lite-260915',
+    agnesApiKey: env.AGNES_API_KEY ?? '',
+    agnesBaseUrl: env.AGNES_BASE_URL ?? '',
+    agnesModel: env.AGNES_MODEL ?? '',
   };
 }

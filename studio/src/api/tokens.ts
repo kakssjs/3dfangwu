@@ -5,3 +5,5 @@ export const DB = Symbol('Db');
 export const DEEP_MODEL = Symbol('DeepModel');
 /** Asks which place a position is in (D26). The tests hand in a stub; the app uses OpenStreetMap's Nominatim. */
 export const GEO_LOOKUP = Symbol('GeoLookup');
+/** The boss's backup readers for floor plans (N4) — Doubao (豆包), Agnes AI — OpenAI-style clients, tried in order. */
+export const BACKUP_READERS = Symbol('BackupReaders');

@@ -72,6 +72,7 @@ export async function startApi({
   geo = noPlaces,
   amap = { key: '', securityCode: '' },
   amapFetch,
+  backups,
 }: {
   rateLimits?: boolean;
   adminKey?: string;
@@ -80,6 +81,8 @@ export async function startApi({
   geo?: GeoLookup;
   amap?: { key: string; securityCode: string };
   amapFetch?: typeof fetch;
+  /** Backup floor-plan readers (N4), as stubs. Default: none, like a PC without the keys. */
+  backups?: MimoClient[];
 } = {}): Promise<Api> {
   const database = await freshDatabase();
   const filesDir = mkdtempSync(path.join(tmpdir(), 'studio-files-'));
@@ -98,8 +101,14 @@ export async function startApi({
     mimoApiKey: '',
     mimoBaseUrl: '',
     mimoModel: 'MiMo-V2.6-Pro',
+    doubaoApiKey: '',
+    doubaoBaseUrl: '',
+    doubaoModel: '',
+    agnesApiKey: '',
+    agnesBaseUrl: '',
+    agnesModel: '',
   };
-  const app = await createApp({ config, database, logger: false, rateLimits, mimo: new MimoClient(mimo), deepModel, geo, amapFetch });
+  const app = await createApp({ config, database, logger: false, rateLimits, mimo: new MimoClient(mimo), deepModel, geo, amapFetch, backups });
   await app.listen(0, '127.0.0.1');
   const { port } = app.getHttpServer().address() as AddressInfo;
   const base = `http://127.0.0.1:${port}/api`;

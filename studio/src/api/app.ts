@@ -1,3 +1,4 @@
+import { ReferenceDataModule } from './reference-data/reference-data.module.ts';
 // The I Renovation API (N19): one NestJS app (D20). Every route is under /api.
 
 import 'reflect-metadata';
@@ -18,6 +19,7 @@ import { ContractorsModule } from './contractors/contractors.module.ts';
 import type { Database } from './db/database.ts';
 import { GeoModule } from './geo/geo.module.ts';
 import { nominatimLookup, type GeoLookup } from './geo/geo.ts';
+import { HomesModule } from './homes/homes.module.ts';
 import { AMAP_CONNECT_SOURCES, AMAP_IMAGE_SOURCES, AMAP_PREFIX, AMAP_SCRIPT_SOURCES, amapProxy } from './maps/amap.ts';
 import { MatchingModule } from './matching/matching.module.ts';
 import { MapsModule } from './maps/maps.module.ts';
@@ -43,7 +45,7 @@ class CoreModule {
 
 @Module({})
 export class AppModule {
-  static register(config: StudioConfig, database: Database, rateLimits: boolean, mimo: MimoClient, deepModel: BaseChatModel | null, geo: GeoLookup): DynamicModule {
+  static register(config: StudioConfig, database: Database, rateLimits: boolean, mimo: MimoClient, deepModel: BaseChatModel | null, geo: GeoLookup, backups: MimoClient[]): DynamicModule {
     return {
       module: AppModule,
       imports: [
@@ -55,8 +57,10 @@ export class AppModule {
         ContractorsModule,
         MatchingModule,
         RegionsModule,
+        ReferenceDataModule,
         MapsModule,
         GeoModule.register(geo),
+        HomesModule.register(mimo, backups),
         UploadsModule,
         AgentsModule.register(mimo, deepModel),
       ],
@@ -80,17 +84,36 @@ export interface AppOptions {
   geo?: GeoLookup;
   /** Reaches Amap for the map proxy. Default: the real one; the tests hand in a stub. */
   amapFetch?: typeof fetch;
+  /** The Doubao (豆包) backup reader for floor plans (N4). Default: one from the settings when `DOUBAO_API_KEY` is set; the tests hand in a stub. */
+  doubao?: MimoClient | null;
+  /** The full ordered list of backup readers (Doubao, Agnes AI). Default: built from the settings. */
+  backups?: MimoClient[];
 }
 
-export async function createApp({ config, database, logger, rateLimits = true, mimo, deepModel, geo, amapFetch }: AppOptions): Promise<NestExpressApplication> {
+export async function createApp({ config, database, logger, rateLimits = true, mimo, deepModel, geo, amapFetch, doubao, backups }: AppOptions): Promise<NestExpressApplication> {
+  // One OpenAI-style client per model account: MiMo for the agents and the readers (D9), and the
+  // boss's backup readers for floor-plan reading (N4) — Doubao (豆包), Agnes AI — when configured.
+  const mimoClient = mimo ?? new MimoClient(httpTransport({ apiKey: config.mimoApiKey, baseUrl: config.mimoBaseUrl, model: config.mimoModel }));
+  const backupReaders = backups
+    ?? (doubao !== undefined
+      ? [doubao].filter((c): c is MimoClient => c !== null)
+      : [
+          config.doubaoApiKey
+            ? new MimoClient(httpTransport({ apiKey: config.doubaoApiKey, baseUrl: config.doubaoBaseUrl, model: config.doubaoModel, timeoutMs: 300_000 }))
+            : null,
+          config.agnesApiKey && config.agnesBaseUrl
+            ? new MimoClient(httpTransport({ apiKey: config.agnesApiKey, baseUrl: config.agnesBaseUrl, model: config.agnesModel, timeoutMs: 300_000 }))
+            : null,
+        ].filter((c): c is MimoClient => c !== null));
   const app = await NestFactory.create<NestExpressApplication>(
     AppModule.register(
       config,
       database,
       rateLimits,
-      mimo ?? new MimoClient(httpTransport({ apiKey: config.mimoApiKey, baseUrl: config.mimoBaseUrl, model: config.mimoModel })),
+      mimoClient,
       deepModel === undefined ? buildDeepModel(config) : deepModel,
       geo ?? nominatimLookup(),
+      backupReaders,
     ),
     logger === false ? { logger: false } : {},
   );
@@ -108,6 +131,9 @@ export async function createApp({ config, database, logger, rateLimits = true, m
 }
 
 const webDir = path.join(studioDir, 'web');
+// floorplan-3d's own screen (F1, WORKFLOW.md section 9.5), served here at the home's 3D link so the
+// editor and the API are one origin. N20 may serve it from its own address behind Caddy instead.
+const floorplanPage = path.join(studioDir, '..', 'floorplan-3d', 'index.html');
 
 // Just what the site middleware uses of Express's request and response.
 interface Req {
@@ -132,6 +158,7 @@ function serveSite(app: NestExpressApplication, config: StudioConfig, amapFetch?
     "script-src 'self'",
     "style-src 'self'",
     "img-src 'self' data: blob:",
+    "media-src 'self' https://d8j0ntlcm91z4.cloudfront.net",
     "connect-src 'self'",
     "frame-src 'self'",
     "frame-ancestors 'none'",
@@ -152,11 +179,26 @@ function serveSite(app: NestExpressApplication, config: StudioConfig, amapFetch?
     "base-uri 'none'",
     "form-action 'none'",
   ].join('; ');
+  // The 3D editor (floorplan-3d) is one page of its own, like the map page: its code is one inline
+  // script in a single file, and Three.js ships with it (F3), so nothing here may load from outside.
+  const floorplanPolicy = [
+    "default-src 'self'",
+    "script-src 'self' 'unsafe-inline'",
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' data: blob:",
+    "connect-src 'self'",
+    "worker-src 'self' blob:",
+    "font-src 'self' data:",
+    "frame-ancestors 'none'",
+    "base-uri 'none'",
+    "form-action 'none'",
+  ].join('; ');
   const proxy = amapProxy(config, amapFetch);
   app.use(AMAP_PREFIX, (req: ProxyReq, res: ProxyRes) => void proxy(req, res));
   app.use((req: Req, res: Res, next: () => void) => {
     if (req.path.startsWith('/api')) return next();
-    res.setHeader('Content-Security-Policy', req.path === '/map-frame.html' ? mapPolicy : policy);
+    const page = req.path === '/map-frame.html' ? mapPolicy : req.path.startsWith('/plan3d') ? floorplanPolicy : policy;
+    res.setHeader('Content-Security-Policy', page);
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('Referrer-Policy', 'no-referrer');
     // The page may ask for the visitor's position ("use my location"); nothing embedded may.
@@ -164,6 +206,12 @@ function serveSite(app: NestExpressApplication, config: StudioConfig, amapFetch?
     next();
   });
   app.useStaticAssets(webDir, { index: false, maxAge: 0 });
+  // The 3D editor behind the home's private link (F1): /plan3d/<token>, or /plan3d for the sample.
+  app.use((req: Req, res: Res, next: () => void) => {
+    const editor = req.method === 'GET' && (req.path === '/plan3d' || req.path.startsWith('/plan3d/'));
+    if (!editor) return next();
+    res.sendFile(floorplanPage);
+  });
   app.use((req: Req, res: Res, next: () => void) => {
     const page = req.method === 'GET' && !req.path.startsWith('/api') && path.extname(req.path) === '';
     if (!page) return next();

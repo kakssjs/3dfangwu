@@ -41,6 +41,8 @@ export interface FitReason {
   result: FitResult;
   /** A plain sentence with the numbers, for the agent to put into the homeowner's language. */
   note: string;
+  /** The same, in Chinese (D10). */
+  noteZh: string;
 }
 
 export interface Fit {
@@ -51,6 +53,11 @@ export interface Fit {
 }
 
 /** What each factor is worth. A factor that can't be judged (no style chosen, no price stated) is left out of the total. */
+/** Style names as people read them in Chinese. */
+const STYLE_ZH: Record<string, string> = {
+  'modern-minimalist': '现代简约', cream: '奶油风', 'natural-wood': '原木风', 'new-chinese': '新中式', nordic: '北欧', 'modern-luxury': '轻奢', industrial: '工业风', 'wabi-sabi': '侘寂风',
+};
+
 const WEIGHTS = { budget: 35, style: 25, experience: 20, local: 20 } as const;
 const STRONG_FROM = 75;
 const GOOD_FROM = 50;
@@ -93,7 +100,7 @@ function budgetFactor(project: ProjectFacts, team: TeamFacts): Factor {
     return {
       earned: 0,
       counts: false,
-      reason: { factor: 'budget', result: 'unknown', note: "Hasn't stated its usual price per m², so the budget isn't compared" },
+      reason: { factor: 'budget', result: 'unknown', note: "Hasn't stated its usual price per m², so the budget isn't compared", noteZh: '未说明常见每平米价格，所以不比较预算' },
     };
   }
   const low = project.budgetMinCny / project.floorAreaM2;
@@ -109,7 +116,7 @@ function budgetFactor(project: ProjectFacts, team: TeamFacts): Factor {
       return {
         earned: weight,
         counts: true,
-        reason: { factor: 'budget', result: 'good', note: `Your budget is about ${budget} per m²; this team usually works at ${usual}` },
+        reason: { factor: 'budget', result: 'good', note: `Your budget is about ${budget} per m²; this team usually works at ${usual}`, noteZh: `你的预算约为每平米 ${budget}；该团队常见价格为 ${usual}` },
       };
     }
     return {
@@ -119,6 +126,7 @@ function budgetFactor(project: ProjectFacts, team: TeamFacts): Factor {
         factor: 'budget',
         result: 'partial',
         note: `Your budget is about ${budget} per m²; this team usually works at ${usual}, which only partly overlaps`,
+        noteZh: `你的预算约为每平米 ${budget}；该团队常见价格为 ${usual}，只有部分重合`,
       },
     };
   }
@@ -134,13 +142,14 @@ function budgetFactor(project: ProjectFacts, team: TeamFacts): Factor {
         factor: 'budget',
         result: 'partial',
         note: `Your budget of about ${budget} per m² is just ${side} this team's usual ${usual}`,
+        noteZh: `你的预算约为每平米 ${budget}，略${above ? '高' : '低'}于该团队常见的 ${usual}`,
       },
     };
   }
   return {
     earned: 0,
     counts: true,
-    reason: { factor: 'budget', result: 'none', note: `Your budget of about ${budget} per m² is well ${side} this team's usual ${usual}` },
+    reason: { factor: 'budget', result: 'none', note: `Your budget of about ${budget} per m² is well ${side} this team's usual ${usual}`, noteZh: `你的预算约为每平米 ${budget}，明显${above ? '高' : '低'}于该团队常见的 ${usual}` },
   };
 }
 
@@ -150,20 +159,20 @@ function styleFactor(project: ProjectFacts, team: TeamFacts): Factor {
     return {
       earned: 0,
       counts: false,
-      reason: { factor: 'style', result: 'unknown', note: "Hasn't listed the styles it works in, so the style isn't compared" },
+      reason: { factor: 'style', result: 'unknown', note: "Hasn't listed the styles it works in, so the style isn't compared", noteZh: '未列出擅长风格，所以不比较风格' },
     };
   }
   if ((team.styles as readonly string[]).includes(project.style)) {
     return {
       earned: WEIGHTS.style,
       counts: true,
-      reason: { factor: 'style', result: 'good', note: `Works in your chosen style (${project.style})` },
+      reason: { factor: 'style', result: 'good', note: `Works in your chosen style (${project.style})`, noteZh: `擅长你选的风格（${STYLE_ZH[project.style] ?? project.style}）` },
     };
   }
   return {
     earned: 0,
     counts: true,
-    reason: { factor: 'style', result: 'none', note: `Doesn't list your chosen style (${project.style}); works in ${team.styles.join(', ')}` },
+    reason: { factor: 'style', result: 'none', note: `Doesn't list your chosen style (${project.style}); works in ${team.styles.join(', ')}`, noteZh: `没有列出你选的风格（${STYLE_ZH[project.style] ?? project.style}）；擅长 ${team.styles.map((x) => STYLE_ZH[x] ?? x).join('、')}` },
   };
 }
 
@@ -173,7 +182,7 @@ function experienceFactor(team: TeamFacts): Factor {
   return {
     earned: (WEIGHTS.experience * Math.min(years, 10)) / 10,
     counts: true,
-    reason: { factor: 'experience', result, note: `${plural(years, 'year')} in business, team of ${team.teamSize}` },
+    reason: { factor: 'experience', result, note: `${plural(years, 'year')} in business, team of ${team.teamSize}`, noteZh: `从业 ${years} 年，团队 ${team.teamSize} 人` },
   };
 }
 
@@ -187,6 +196,7 @@ function localFactor(project: ProjectFacts, team: TeamFacts): Factor {
       factor: 'local',
       result,
       note: here > 0 ? `${plural(here, 'listed past project')} in ${project.district}` : `No listed past projects in ${project.district}`,
+      noteZh: here > 0 ? `在${project.district}有 ${here} 个过往项目` : `在${project.district}没有列出过往项目`,
     },
   };
 }

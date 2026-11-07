@@ -1,15 +1,17 @@
 // The I Renovation interface (N1, N26, N8, D25): one page, served by the NestJS app at `/`, calling
 // the API at `/api`. Homeowner, contractor and console screens share this shell.
 
+import { decorateWorkbench, studioSpace } from './spatial.js';
 import { ApiError, api, session } from './api.js';
 import { h, mount } from './dom.js';
 import { lang, setLang, t } from './i18n.js';
 import { go, setRenderer } from './router.js';
 import { icon } from './ui.js';
+import { animatePage } from './motion.js';
 import { admin } from './views/admin.js';
 import { describe, errorBox, link, loading } from './views/common.js';
 import { application, invitationDetail, invitationsList } from './views/contractor.js';
-import { browse, browseDetail, projectDetail, projectNew, projectsList } from './views/homeowner.js';
+import { browse, browseDetail, homeNew, homesList, projectDetail, projectNew, projectsList } from './views/homeowner.js';
 import { dashboardFor, home, login, register } from './views/public.js';
 
 // [path, view, who may open it]: 'homeowner', 'contractor', 'any' signed-in account, 'admin', or public.
@@ -20,6 +22,8 @@ const ROUTES = [
   ['/projects', projectsList, 'homeowner'],
   ['/projects/new', projectNew, 'homeowner'],
   ['/projects/:id', projectDetail, 'homeowner'],
+  ['/homes', homesList, 'homeowner'],
+  ['/homes/new', homeNew, 'homeowner'],
   ['/browse', browse, 'homeowner'],
   ['/browse/:id', browseDetail, 'homeowner'],
   ['/application', application, 'contractor'],
@@ -50,11 +54,12 @@ function header(path) {
   const items = !user
     ? [['/login', t('nav.login'), 'users'], ['/register', t('nav.register'), 'plus']]
     : user.role === 'homeowner'
-      ? [['/projects', t('nav.projects'), 'home'], ['/projects/new', t('nav.new'), 'plus'], ['/browse', t('nav.browse'), 'users']]
+      ? [['/projects', t('nav.projects'), 'home'], ['/homes', t('nav.homes'), 'build'], ['/projects/new', t('nav.new'), 'plus'], ['/browse', t('nav.browse'), 'users']]
       : [['/application', t('nav.application'), 'file'], ['/invitations', t('nav.invitations'), 'inbox']];
   const isOn = (href) =>
     path === href ||
     (href === '/projects' && path.startsWith('/projects/') && path !== '/projects/new') ||
+    (href === '/homes' && path.startsWith('/homes/')) ||
     (href === '/browse' && path.startsWith('/browse/')) ||
     (href === '/invitations' && path.startsWith('/invitations/'));
   const badge = h('span', { class: 'badge hide' });
@@ -71,14 +76,21 @@ function header(path) {
       })
       .catch(() => {});
   }
+  const menu = h('button', { class: 'landing-menu', type: 'button', 'aria-label': lang() === 'en' ? 'Open menu' : '打开菜单', 'aria-expanded': 'false', onclick: () => {
+    const open = menu.getAttribute('aria-expanded') !== 'true';
+    menu.setAttribute('aria-expanded', String(open));
+    menu.setAttribute('aria-label', lang() === 'en' ? (open ? 'Close menu' : 'Open menu') : (open ? '关闭菜单' : '打开菜单'));
+    nav.classList.toggle('menu-open', open);
+  } }, h('span'), h('span'));
   return h(
     'header',
-    { class: 'bar' },
+    { class: path === '/' ? 'bar landing-bar' : 'bar' },
     h(
       'div',
       { class: 'bar-in' },
-      h('a', { href: '/', 'data-link': true, class: 'brand' }, h('span', { class: 'logo' }, icon('build')), 'I Renovation'),
+      h('a', { href: '/', 'data-link': true, class: 'brand' }, h('span', { class: 'logo' }, h('img', { src: path === '/' ? '/homora-icon.png' : '/homora-mark-v2.png', alt: '', width: 36, height: 36 })), lang() === 'en' ? 'Homora' : '予舍'),
       nav,
+      path === '/' ? menu : null,
       h(
         'div',
         { class: 'who' },
@@ -91,14 +103,20 @@ function header(path) {
 }
 
 let ticket = 0;
+let disposeMotion = () => {};
 
 async function render() {
   const mine = ++ticket;
   const app = document.getElementById('app');
   await ensureUser();
   if (mine !== ticket) return;
+  document.title = lang() === 'en' ? 'Homora · Home design & renovation' : '予舍 · 住宅设计与装修';
   const path = location.pathname.replace(/\/+$/, '') || '/';
-  const main = h('main', { class: 'wrap' }, loading());
+  document.body.dataset.space = ({ projects: 'projects', homes: 'homes', browse: 'teams', application: 'partners', invitations: 'invitations', admin: 'console', login: 'login', register: 'register' })[path.split('/')[1]] || 'home';
+  document.body.classList.toggle('in-studio', path === '/');
+  document.body.classList.toggle('in-room', path !== '/');
+  const main = h('main', { class: path === '/' ? 'wrap landing-main' : 'wrap workspace' }, loading());
+  disposeMotion();
   mount(app, header(path), main, h('footer', { class: 'foot' }, h('span', {}, t('footer.note')), ' ', link('/admin', t('nav.console'))));
   const found = find(path);
   if (!found) {
@@ -118,8 +136,11 @@ async function render() {
   try {
     const view = await route.view({ args, params: new URLSearchParams(location.search) });
     if (mine !== ticket || view === null) return;
-    main.replaceChildren(view);
+    const intro = path === '/' ? null : studioSpace();
+    if (intro) decorateWorkbench(view, path);
+    main.replaceChildren(...(intro ? [intro, view] : [view]));
     window.scrollTo(0, 0);
+    disposeMotion = animatePage(main);
   } catch (error) {
     if (mine !== ticket) return;
     if (error instanceof ApiError && error.status === 401 && !error.admin) {

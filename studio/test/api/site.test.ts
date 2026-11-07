@@ -37,6 +37,7 @@ describe('the site', () => {
     const policy = page.headers.get('content-security-policy') ?? '';
     assert.match(policy, /default-src 'self'/);
     assert.match(policy, /frame-ancestors 'none'/);
+    assert.match(policy, /media-src 'self' https:\/\/d8j0ntlcm91z4\.cloudfront\.net/);
     assert.doesNotMatch(policy, /unsafe-inline|unsafe-eval/);
     assert.equal(page.headers.get('x-content-type-options'), 'nosniff');
     assert.match(await page.text(), /<div id="app">/);
@@ -116,6 +117,49 @@ describe('a renovation journey in a real browser', { skip: browserPath ? false :
     await page.locator('input[name=acceptTerms]').check();
     await page.locator('button[type=submit]').click();
   }
+
+  test('the landing page opens its phone menu and switches the hero on scroll', async () => {
+    const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+    const page = await context.newPage();
+    await page.route('https://d8j0ntlcm91z4.cloudfront.net/**', (route) => route.abort());
+    await page.goto(api.url);
+    await page.locator('.landing-menu').click();
+    assert.equal(await page.locator('.landing-menu').getAttribute('aria-expanded'), 'true');
+    assert.equal(await page.locator('.landing-bar .nav a:visible').count(), 2);
+    await page.locator('.landing-menu').click();
+    await page.evaluate('window.scrollTo(0, 100)');
+    await page.waitForFunction("document.querySelector('.landing-video-first')?.classList.contains('is-scrolled')");
+    await fixed(page);
+    await context.close();
+  });
+
+  test('leaving a room cancels its delayed navigation', async () => {
+    const registered = await api.call('POST', '/auth/register', { body: { role: 'homeowner', phone: '13800138890', password: PASSWORD, displayName: 'Navigation check', language: 'en', acceptTerms: true } });
+    assert.equal(registered.status, 201);
+    const context = await browser.newContext();
+    try {
+      await context.addInitScript((token: string) => { (globalThis as any).localStorage.setItem('ir.token', token); }, registered.body.accessToken);
+      const page = await context.newPage();
+      await page.goto(`${api.url}/homes`);
+      await page.locator('.door-0').click();
+      await page.locator('.brand').click();
+      await page.waitForTimeout(1100);
+      assert.equal(new URL(page.url()).pathname, '/');
+    } finally { await context.close(); }
+  });
+
+  test('the obscured home video stops decoding after the fade', async () => {
+    const context = await browser.newContext();
+    try {
+      const page = await context.newPage();
+      await page.route('https://d8j0ntlcm91z4.cloudfront.net/**', (route) => route.abort());
+      await page.goto(api.url);
+      await page.evaluate('window.scrollTo(0, 100)');
+      await page.waitForTimeout(1000);
+      assert.equal(await page.locator('.landing-video-first').evaluate((video: any) => video.paused), true);
+      assert.equal(await page.locator('video').count(), 2);
+    } finally { await context.close(); }
+  });
 
   let contractor: Page;
   let homeowner: Page;

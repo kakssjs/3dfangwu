@@ -221,7 +221,7 @@ export function locateButton(onPlace) {
 const MAX_FILE = 8 * 1024 * 1024;
 const TYPES = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
 
-const toBase64 = (file) =>
+export const toBase64 = (file) =>
   new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(String(reader.result).split(',')[1] ?? '');

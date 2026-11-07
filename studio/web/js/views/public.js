@@ -11,70 +11,75 @@ export function dashboardFor(user) {
   return user.role === 'contractor' ? '/application' : '/projects';
 }
 
-/** A floor plan drawn as line art: rooms, doors, a sofa and a bed. */
-function floorPlanArt() {
-  const NS = 'http://www.w3.org/2000/svg';
-  const el = (tag, attrs) => {
-    const node = document.createElementNS(NS, tag);
-    for (const [k, v] of Object.entries(attrs)) node.setAttribute(k, v);
-    return node;
+function landingHero() {
+  const base = 'https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/';
+  const second = h('video', { class: 'landing-video', muted: true, playsinline: true, preload: 'metadata', src: `${base}hf_20260624_055914_ee2b3b56-9a58-4885-989e-5b72a68b630d.mp4`, 'aria-hidden': 'true' });
+  const first = h('video', { class: 'landing-video landing-video-first', muted: true, playsinline: true, autoplay: true, loop: true, src: `${base}hf_20260625_174131_395bc785-bb21-4e65-abf6-27c56f0764b6.mp4`, 'aria-hidden': 'true' });
+  const introImage = h('img', { src: '/landing-fallback.png', alt: '' });
+  const intro = h('div', { class: 'landing-intro', 'aria-hidden': 'true' }, introImage);
+  first.addEventListener('playing', () => {
+    const reveal = () => intro.classList.add('is-playing');
+    if (introImage.complete && introImage.naturalWidth) reveal();
+    else introImage.addEventListener('load', reveal, { once: true });
+  }, { once: true });
+  second.muted = first.muted = true;
+  const hero = h('section', { class: 'landing-hero' }, h('div', { class: 'landing-sticky' },
+    second, first, intro, h('div', { class: 'landing-transition', 'aria-hidden': 'true' }), h('div', { class: 'landing-shade' }),
+    h('div', { class: 'landing-emblem', 'aria-hidden': 'true' }, h('img', { class: 'brand-emblem', src: '/homora-icon.png', alt: '' })),
+    h('div', { class: 'landing-copy' }, h('p', { class: 'landing-eyebrow' }, lang() === 'en' ? 'HOMORA · HOME DESIGN & RENOVATION' : '予舍 · 住宅设计与装修'), h('h1', {}, t('home.title')), h('p', { class: 'landing-lead' }, t('home.lead')),
+      h('div', { class: 'actions landing-actions' }, link('/register', [t('home.cta.homeowner'), icon('arrow')], 'btn light big'), link('/register?role=contractor', t('home.cta.contractor'), 'btn ghost big'))),
+  ));
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)');
+  const lifecycle = new AbortController();
+  let scrolled = false;
+  let pauseTimer;
+  const updatePlayback = () => {
+    first.pause(); second.pause();
+    if (!document.hidden && !reduced.matches && hero.isConnected) (scrolled ? second : first).play().catch(() => {});
   };
-  const svg = el('svg', { class: 'art', viewBox: '0 0 420 320', role: 'img', 'aria-label': t('home.art') });
-  const line = { fill: 'none', stroke: '#8fd3c4', 'stroke-width': '4', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' };
-  const thin = { fill: 'none', stroke: '#5fb3a1', 'stroke-width': '2', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' };
-  svg.append(
-    el('rect', { x: 20, y: 20, width: 380, height: 280, rx: 6, ...line, fill: 'rgba(143,211,196,0.06)' }),
-    el('path', { d: 'M20 150h150M170 20v130M170 150v150M170 220h230M290 220v80M290 20v200', ...line }),
-    // doors
-    el('path', { d: 'M110 150v-40a40 40 0 0 1 40 40', ...thin }),
-    el('path', { d: 'M170 200a36 36 0 0 1 36 -36', ...thin }),
-    el('path', { d: 'M290 270a30 30 0 0 0 30 -30', ...thin }),
-    // sofa
-    el('rect', { x: 200, y: 40, width: 80, height: 34, rx: 8, ...thin }),
-    el('rect', { x: 206, y: 80, width: 68, height: 22, rx: 6, ...thin }),
-    // bed
-    el('rect', { x: 40, y: 190, width: 90, height: 90, rx: 8, ...thin }),
-    el('rect', { x: 48, y: 198, width: 34, height: 22, rx: 5, ...thin }),
-    el('rect', { x: 88, y: 198, width: 34, height: 22, rx: 5, ...thin }),
-    // table and kitchen run
-    el('circle', { cx: 330, cy: 110, r: 30, ...thin }),
-    el('rect', { x: 306, y: 30, width: 80, height: 22, rx: 4, ...thin }),
-    // bath
-    el('rect', { x: 306, y: 236, width: 76, height: 50, rx: 8, ...thin }),
-  );
-  return svg;
+  const scroll = () => {
+    if (!hero.isConnected) { window.removeEventListener('scroll', scroll); return; }
+    document.querySelector('.landing-bar')?.classList.toggle('over-content', hero.getBoundingClientRect().bottom < 100);
+    const next = window.scrollY > 0;
+    if (next === scrolled || reduced.matches) return;
+    scrolled = next;
+    clearTimeout(pauseTimer);
+    if (next) {
+      second.currentTime = 0; second.play().catch(() => {});
+      pauseTimer = setTimeout(() => first.pause(), 700);
+    } else {
+      second.pause(); first.play().catch(() => {});
+    }
+    first.classList.toggle('is-scrolled', next);
+  };
+  if (reduced.matches) { first.autoplay = false; first.pause(); }
+  window.addEventListener('scroll', scroll, { passive: true, signal: lifecycle.signal });
+  document.addEventListener('visibilitychange', updatePlayback, { signal: lifecycle.signal });
+  reduced.addEventListener('change', updatePlayback, { signal: lifecycle.signal });
+  hero.disposeLanding = () => { clearTimeout(pauseTimer); lifecycle.abort(); first.pause(); second.pause(); };
+  return hero;
 }
 
 export async function home() {
-  if (session.user) return go(dashboardFor(session.user), true);
-  const feature = (name, key) => h('div', { class: 'card feature' }, h('div', { class: 'ico-box' }, icon(name)), h('h3', {}, t(`home.f.${key}.title`)), h('p', { class: 'muted' }, t(`home.f.${key}.body`)));
+  const feature = (name, key) => h('div', { class: 'feature' }, h('div', { class: 'ico-box' }, icon(name)), h('h3', {}, t(`home.f.${key}.title`)), h('p', { class: 'muted' }, t(`home.f.${key}.body`)));
   const faq = (n) => h('details', {}, h('summary', {}, t(`home.q${n}`)), h('p', { class: 'muted' }, t(`home.a${n}`)));
   return h(
     'div',
-    { class: 'stack' },
+    { class: 'stack landing-page' },
+    landingHero(),
+    h('div', { class: 'landing-benefits' }, ['shield', 'sealed', 'lock', 'scale'].map((name, i) => h('span', {}, icon(name), t(`home.pill${i + 1}`)))),
+    h('section', { class: 'home-editorial' }, h('p', { class: 'editorial-kicker' }, '01 / THE HOMORA WAY'), h('h2', {}, t('home.editorial.title')), h('p', { class: 'muted' }, t('home.editorial.body'))),
+    h('section', { class: 'grid3 home-features' }, feature('pin', 'match'), feature('sealed', 'sealed'), feature('lock', 'contact')),
     h(
       'section',
-      { class: 'hero' },
-      h(
-        'div',
-        {},
-        h('h1', {}, t('home.title')),
-        h('p', { class: 'lead' }, t('home.lead')),
-        h('div', { class: 'actions' }, link('/register', [t('home.cta.homeowner'), icon('arrow')], 'btn primary big'), link('/register?role=contractor', t('home.cta.contractor'), 'btn ghost big')),
-        h('div', { class: 'pill-row' }, ['shield', 'sealed', 'lock', 'scale'].map((name, i) => h('span', { class: 'pill' }, icon(name), t(`home.pill${i + 1}`)))),
-      ),
-      floorPlanArt(),
-    ),
-    h('section', { class: 'grid3' }, feature('pin', 'match'), feature('sealed', 'sealed'), feature('lock', 'contact')),
-    h(
-      'section',
-      { class: 'band' },
+      { class: 'band home-process' },
+      h('p', { class: 'editorial-kicker' }, '02 / FROM IDEA TO HOME'),
       h('h2', {}, t('home.how.title')),
       h('ol', { class: 'steps-list' }, [1, 2, 3, 4].map((n) => h('li', {}, h('strong', {}, t(`home.step${n}.title`)), h('p', { class: 'muted' }, t(`home.step${n}.body`))))),
     ),
-    h('section', { class: 'band' }, h('h2', {}, t('home.nobid.title')), h('p', {}, t('home.nobid.body'))),
-    h('section', { class: 'band' }, h('h2', {}, t('home.faq')), faq(1), faq(2), faq(3), faq(4)),
-    h('section', { class: 'band' }, h('h2', {}, t('home.contractor.title')), h('p', { class: 'muted' }, t('home.contractor.body')), link('/register?role=contractor', t('home.cta.contractor'), 'btn primary')),
+    h('section', { class: 'band home-note' }, h('h2', {}, t('home.nobid.title')), h('p', {}, t('home.nobid.body'))),
+    h('section', { class: 'band home-faq' }, h('p', { class: 'editorial-kicker' }, '03 / A LITTLE CLARITY'), h('h2', {}, t('home.faq')), faq(1), faq(2), faq(3), faq(4)),
+    h('section', { class: 'band home-join' }, h('p', { class: 'editorial-kicker' }, 'BUILT TOGETHER'), h('h2', {}, t('home.contractor.title')), h('p', { class: 'muted' }, t('home.contractor.body')), link('/register?role=contractor', t('home.cta.contractor'), 'btn primary')),
   );
 }
 

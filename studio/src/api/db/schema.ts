@@ -17,6 +17,7 @@ import {
   uuid,
 } from 'drizzle-orm/pg-core';
 import { STAGES } from '../../home-record.ts';
+import type { DesignState, PlanDocument } from '../homes/plan-format.ts';
 import {
   CONTRACTOR_KINDS,
   CONTRACTOR_STATUSES,
@@ -214,6 +215,53 @@ export const uploads = pgTable(
   (t) => [index('uploads_by_owner').on(t.ownerId), index('uploads_by_project').on(t.projectId)],
 );
 
+/**
+ * One home, with its plan in the F2 format (F1, F2; `studio/docs/plan-format.md`). The plan is the
+ * structure the Floor-plan agent produces: walls, openings and rooms. What the homeowner changes in
+ * floorplan-3d is saved beside it as numbered design versions (F6). One record per home (N9, N2);
+ * the home record itself (rooms, furniture, Homebox links) is still a file until N2 grows it here.
+ */
+export const homes = pgTable('homes', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  ownerId: uuid('owner_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  /** The home's title, for example 三室两厅两卫 (F5 shows it in the reader's language). */
+  name: text('name').notNull(),
+  /** The plan document (schema `studio.plan/1`), checked by `homes/plan-format.ts` on the way in. */
+  plan: jsonb('plan').$type<PlanDocument>().notNull(),
+  /**
+   * The home's private 3D link (F1): floorplan-3d opens the plan and saves versions through it.
+   * Anyone holding the link may view and save — it is shared with the teams the homeowner invites.
+   */
+  linkToken: text('link_token').notNull().unique(),
+  /** The design version the homeowner confirmed (F6), if any. */
+  confirmedDesign: integer('confirmed_design'),
+  /** The floor-plan photo this home was read from (N4), if it came from one. */
+  sourceUploadId: uuid('source_upload_id').references(() => uploads.id, { onDelete: 'set null' }),
+  createdAt: createdAt(),
+  updatedAt: updatedAt(),
+});
+
+/** One numbered design version of a home (F6): floorplan-3d's export state, kept server-side. */
+export const designVersions = pgTable(
+  'design_versions',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    homeId: uuid('home_id')
+      .notNull()
+      .references(() => homes.id, { onDelete: 'cascade' }),
+    /** 1, 2, 3... per home, in the order the homeowner saved them. */
+    number: integer('number').notNull(),
+    /** What the export holds: furniture, room names and flooring, demolished walls, measures. */
+    data: jsonb('data').$type<DesignState>().notNull(),
+    /** The homeowner's note, for example "拆了阳台墙". */
+    note: text('note').notNull().default(''),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex('design_versions_one_number').on(t.homeId, t.number)],
+);
+
 /** One entry in a task's log: when it happened, who did it, what happened. */
 export interface TaskLogEntry {
   at: string;
@@ -269,3 +317,22 @@ export type Project = typeof projects.$inferSelect;
 export type Invitation = typeof invitations.$inferSelect;
 export type Upload = typeof uploads.$inferSelect;
 export type Task = typeof tasks.$inferSelect;
+export type Home = typeof homes.$inferSelect;
+export type DesignVersion = typeof designVersions.$inferSelect;
+
+
+/** Public, licensed reference data. Never an account, verified team, quote or customer home. */
+export const referenceEntries = pgTable('reference_entries', {
+  id: text('id').primaryKey(),
+  kind: text('kind').notNull(),
+  title: text('title').notNull(),
+  titleEn: text('title_en'),
+  source: text('source').notNull(),
+  sourceUrl: text('source_url').notNull(),
+  license: text('license').notNull(),
+  attribution: text('attribution').notNull(),
+  retrievedAt: timestamp('retrieved_at', { withTimezone: true }).notNull(),
+  sourceVersion: text('source_version'),
+  sourceHash: text('source_hash').notNull(),
+  data: jsonb('data').$type<Record<string, unknown>>().notNull(),
+}, (t) => [index('reference_entries_kind').on(t.kind), check('reference_entries_kind_valid', sql`${t.kind} in ('business', 'building', 'floorplan', 'material', 'region')`)]);
