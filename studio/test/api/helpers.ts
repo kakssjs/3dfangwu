@@ -13,6 +13,7 @@ import { GeoUnavailable, type GeoLookup } from '../../src/api/geo/geo.ts';
 import { createApp } from '../../src/api/app.ts';
 import type { StudioConfig } from '../../src/api/config.ts';
 import { openDatabase, type Db } from '../../src/api/db/database.ts';
+import type { EmailSender } from '../../src/api/auth/email.ts';
 
 /**
  * With `STUDIO_TEST_DATABASE_URL` the tests run on that real PostgreSQL server instead of the one
@@ -73,6 +74,8 @@ export async function startApi({
   amap = { key: '', securityCode: '' },
   amapFetch,
   backups,
+  email = false,
+  emailSend,
 }: {
   rateLimits?: boolean;
   adminKey?: string;
@@ -83,6 +86,8 @@ export async function startApi({
   amapFetch?: typeof fetch;
   /** Backup floor-plan readers (N4), as stubs. Default: none, like a PC without the keys. */
   backups?: MimoClient[];
+  email?: boolean;
+  emailSend?: EmailSender;
 } = {}): Promise<Api> {
   const database = await freshDatabase();
   const filesDir = mkdtempSync(path.join(tmpdir(), 'studio-files-'));
@@ -107,8 +112,9 @@ export async function startApi({
     agnesApiKey: '',
     agnesBaseUrl: '',
     agnesModel: '',
+    email: { enabled: email, host: 'smtp.example.com', port: 465, secure: true, user: 'sender@example.com', password: 'test-only', from: 'sender@example.com' },
   };
-  const app = await createApp({ config, database, logger: false, rateLimits, mimo: new MimoClient(mimo), deepModel, geo, amapFetch, backups });
+  const app = await createApp({ config, database, logger: false, rateLimits, mimo: new MimoClient(mimo), deepModel, geo, amapFetch, backups, emailSend });
   await app.listen(0, '127.0.0.1');
   const { port } = app.getHttpServer().address() as AddressInfo;
   const base = `http://127.0.0.1:${port}/api`;

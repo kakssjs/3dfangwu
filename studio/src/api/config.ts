@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
+import { readOutlookToken } from './auth/outlook.ts';
 
 /** The `studio/` folder: the nearest folder above this file whose package.json is named "studio". */
 export const studioDir = findStudioDir(import.meta.dirname);
@@ -48,6 +49,19 @@ export interface StudioConfig {
   agnesApiKey: string;
   agnesBaseUrl: string;
   agnesModel: string;
+  /** Email verification stays off until an SMTP sender is configured and explicitly enabled. */
+  email: {
+    enabled: boolean;
+    host: string;
+    port: number;
+    secure: boolean;
+    user: string;
+    password: string;
+    from: string;
+    authType?: 'password' | 'outlook';
+    oauthClientId?: string;
+    oauthTokenFile?: string;
+  };
 }
 
 /** Reads the settings from the environment (`.env.local` is loaded first by `main.ts`). */
@@ -58,6 +72,32 @@ export function loadConfig(env: NodeJS.ProcessEnv): StudioConfig {
   if (adminKey !== '' && adminKey.length < 24) throw new Error('STUDIO_ADMIN_KEY must be at least 24 characters.');
   const port = Number(env.STUDIO_API_PORT || 3100);
   if (!Number.isInteger(port) || port < 0 || port > 65535) throw new Error('STUDIO_API_PORT must be a port number.');
+  const authType = env.SMTP_AUTH_TYPE || 'password';
+  if (authType !== 'password' && authType !== 'outlook') throw new Error('SMTP_AUTH_TYPE must be password or outlook.');
+  const email: StudioConfig['email'] = {
+    enabled: env.STUDIO_EMAIL_ENABLED === 'true',
+    host: authType === 'outlook' ? 'smtp-mail.outlook.com' : env.SMTP_HOST?.trim() ?? '',
+    port: authType === 'outlook' ? 587 : Number(env.SMTP_PORT || 465),
+    secure: authType === 'outlook' ? false : env.SMTP_SECURE !== 'false',
+    user: env.SMTP_USER ?? '',
+    password: env.SMTP_PASSWORD ?? '',
+    from: env.SMTP_FROM?.trim() ?? '',
+    authType,
+    oauthClientId: env.OUTLOOK_CLIENT_ID?.trim() ?? '',
+    oauthTokenFile: env.OUTLOOK_TOKEN_FILE?.trim() || path.join(studioDir, '..', 'runtime', 'outlook-smtp.json'),
+  };
+  if (env.STUDIO_EMAIL_ENABLED && !['true', 'false'].includes(env.STUDIO_EMAIL_ENABLED)) {
+    throw new Error('STUDIO_EMAIL_ENABLED must be true or false.');
+  }
+  if (email.enabled && (!email.host || !email.user || (authType === 'password' && !email.password) || !email.from
+    || !Number.isInteger(email.port) || email.port < 1 || email.port > 65535
+    || (env.SMTP_SECURE !== undefined && !['true', 'false'].includes(env.SMTP_SECURE)))) {
+    throw new Error('Email verification needs SMTP_HOST, SMTP_PORT, SMTP_SECURE, SMTP_USER, SMTP_PASSWORD and SMTP_FROM.');
+  }
+  if (email.enabled && authType === 'outlook') {
+    if (!email.oauthClientId) throw new Error('Outlook SMTP needs OUTLOOK_CLIENT_ID.');
+    readOutlookToken(email.oauthTokenFile!);
+  }
   return {
     host: env.STUDIO_API_HOST || '127.0.0.1',
     port,
@@ -79,5 +119,6 @@ export function loadConfig(env: NodeJS.ProcessEnv): StudioConfig {
     agnesApiKey: env.AGNES_API_KEY ?? '',
     agnesBaseUrl: env.AGNES_BASE_URL ?? '',
     agnesModel: env.AGNES_MODEL ?? '',
+    email,
   };
 }

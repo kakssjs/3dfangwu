@@ -3,6 +3,7 @@
 
 import { sql } from 'drizzle-orm';
 import {
+  boolean,
   check,
   date,
   doublePrecision,
@@ -63,6 +64,8 @@ export const users = pgTable('users', {
   id: uuid('id').primaryKey().defaultRandom(),
   role: roleEnum('role').notNull(),
   phone: text('phone').notNull().unique(),
+  email: text('email').unique(),
+  emailVerifiedAt: timestamp('email_verified_at', { withTimezone: true }),
   passwordHash: text('password_hash').notNull(),
   displayName: text('display_name').notNull(),
   language: languageEnum('language').notNull().default('zh-CN'),
@@ -71,6 +74,22 @@ export const users = pgTable('users', {
   consentAt: timestamp('consent_at', { withTimezone: true }).notNull(),
   createdAt: createdAt(),
 });
+
+/** Short-lived email proofs, kept in the database so a restart cannot reset verification limits. */
+export const emailChallenges = pgTable('email_challenges', {
+  key: text('key').primaryKey(),
+  codeHash: text('code_hash').notNull(),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  attempts: integer('attempts').notNull().default(0),
+  ready: boolean('ready').notNull().default(false),
+}, (t) => [index('email_challenges_expiry').on(t.expiresAt)]);
+
+/** Sending budgets; IP addresses are keyed by HMAC, never stored as plain text. */
+export const emailQuotas = pgTable('email_quotas', {
+  key: text('key').primaryKey(),
+  count: integer('count').notNull(),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+}, (t) => [index('email_quotas_expiry').on(t.expiresAt)]);
 
 /** A contractor's application and, once you verify it, their public profile (D17, N23). */
 export const contractorProfiles = pgTable(

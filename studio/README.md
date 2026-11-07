@@ -94,6 +94,8 @@ curl -X POST -H "X-Admin-Key: $ADMIN_KEY" -H "content-type: application/json" -d
 
 ## Check it
 
+Email registration verification and code login are available once an SMTP sender is configured and explicitly enabled. They are off by default; existing phone/password accounts keep working. See [email-verification.md](docs/email-verification.md) for setup, limits, and tests. There is no real email delivery until the sender is configured.
+
 ```bash
 npm run typecheck
 ```

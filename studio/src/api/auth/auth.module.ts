@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, type DynamicModule } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { JwtModule } from '@nestjs/jwt';
 import type { StudioConfig } from '../config.ts';
@@ -6,6 +6,8 @@ import { CONFIG } from '../tokens.ts';
 import { AuthController } from './auth.controller.ts';
 import { AuthGuard } from './auth.guard.ts';
 import { AuthService } from './auth.service.ts';
+import { EMAIL_SEND, type EmailSender } from './email.ts';
+import { EmailService } from './email.service.ts';
 
 @Module({
   imports: [
@@ -19,6 +21,10 @@ import { AuthService } from './auth.service.ts';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, { provide: APP_GUARD, useClass: AuthGuard }],
+  providers: [AuthService, EmailService, { provide: APP_GUARD, useClass: AuthGuard }],
 })
-export class AuthModule {}
+export class AuthModule {
+  static register(emailSend: EmailSender): DynamicModule {
+    return { module: AuthModule, providers: [{ provide: EMAIL_SEND, useValue: emailSend }] };
+  }
+}

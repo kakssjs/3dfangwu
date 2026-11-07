@@ -4,7 +4,7 @@ I Renovation (the platform) is an AI renovation design and contractor-matching s
 
 ## What we collect
 
-- **Account:** mobile number, display name, your chosen language.
+- **Account:** mobile number, display name, your chosen language; when email verification is enabled, your email address and its verification time.
 - **What you upload:** floor plan images, room photos, documents, and the text you give us in chat.
 - **Requirements and project:** the home's city, district, floor area, layout, renovation type, style, budget range, desired start and description. Phone numbers and email addresses are not allowed in project text; we keep your contact details separately.
 - **Records of the work:** quotes, contract, change orders, construction and acceptance records, reviews, and the conversation with our AI agents.
@@ -13,6 +13,10 @@ I Renovation (the platform) is an AI renovation design and contractor-matching s
 ## How we use it
 
 Only to run the service: requirements, design, matching contractors, comparing quotes, the contract and construction follow-up, acceptance, after-sales and reminders; and to produce your documents (requirement sheet, reports, quote sheets, acceptance lists) and our internal records.
+
+## Email verification
+
+When enabled, email is used to verify registration and sign in with a code, not for marketing. We send the recipient address and verification message through the configured email provider. Codes expire after 5 minutes and can be used once; the platform stores only a keyed digest of each code. Short-lived send counters prevent abuse; IP addresses in these counters are stored only as keyed digests. Expired verification and rate-limit records are cleaned up on subsequent send requests. Existing phone and password login remains available before an email sender is configured.
 
 ## AI processing
 

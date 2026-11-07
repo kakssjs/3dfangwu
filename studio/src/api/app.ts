@@ -11,6 +11,7 @@ import { buildDeepModel } from './agents/deep.ts';
 import { MimoClient, httpTransport } from './agents/mimo.ts';
 import type { BaseChatModel } from '@langchain/core/language_models/chat_models';
 import { AuthModule } from './auth/auth.module.ts';
+import { smtpSender, type EmailSender } from './auth/email.ts';
 import path from 'node:path';
 import type { ProxyReq, ProxyRes } from './maps/amap.ts';
 import { studioDir, type StudioConfig } from './config.ts';
@@ -45,14 +46,14 @@ class CoreModule {
 
 @Module({})
 export class AppModule {
-  static register(config: StudioConfig, database: Database, rateLimits: boolean, mimo: MimoClient, deepModel: BaseChatModel | null, geo: GeoLookup, backups: MimoClient[]): DynamicModule {
+  static register(config: StudioConfig, database: Database, rateLimits: boolean, mimo: MimoClient, deepModel: BaseChatModel | null, geo: GeoLookup, backups: MimoClient[], emailSend: EmailSender): DynamicModule {
     return {
       module: AppModule,
       imports: [
         CoreModule.register(config, database),
         // 120 requests a minute from one address; sign-up and sign-in allow 10 (auth.controller.ts).
         ThrottlerModule.forRoot({ throttlers: [{ name: 'default', ttl: 60_000, limit: 120 }], skipIf: () => !rateLimits }),
-        AuthModule,
+        AuthModule.register(emailSend),
         ConsentModule,
         ContractorsModule,
         MatchingModule,
@@ -88,9 +89,11 @@ export interface AppOptions {
   doubao?: MimoClient | null;
   /** The full ordered list of backup readers (Doubao, Agnes AI). Default: built from the settings. */
   backups?: MimoClient[];
+  /** Tests inject a sender; production uses configured SMTP, and never returns codes to the client. */
+  emailSend?: EmailSender;
 }
 
-export async function createApp({ config, database, logger, rateLimits = true, mimo, deepModel, geo, amapFetch, doubao, backups }: AppOptions): Promise<NestExpressApplication> {
+export async function createApp({ config, database, logger, rateLimits = true, mimo, deepModel, geo, amapFetch, doubao, backups, emailSend }: AppOptions): Promise<NestExpressApplication> {
   // One OpenAI-style client per model account: MiMo for the agents and the readers (D9), and the
   // boss's backup readers for floor-plan reading (N4) — Doubao (豆包), Agnes AI — when configured.
   const mimoClient = mimo ?? new MimoClient(httpTransport({ apiKey: config.mimoApiKey, baseUrl: config.mimoBaseUrl, model: config.mimoModel }));
@@ -114,6 +117,7 @@ export async function createApp({ config, database, logger, rateLimits = true, m
       deepModel === undefined ? buildDeepModel(config) : deepModel,
       geo ?? nominatimLookup(),
       backupReaders,
+      emailSend ?? smtpSender(config.email),
     ),
     logger === false ? { logger: false } : {},
   );

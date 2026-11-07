@@ -5,10 +5,60 @@ import { h } from '../dom.js';
 import { lang, t } from '../i18n.js';
 import { go } from '../router.js';
 import { icon } from '../ui.js';
-import { errorBox, field, input, link, onSubmit } from './common.js';
+import { errorBox, field, input, link, okBox, onSubmit } from './common.js';
 
 export function dashboardFor(user) {
   return user.role === 'contractor' ? '/application' : '/projects';
+}
+
+const emailCooldowns = new Map();
+
+function emailVerification(purpose, consent) {
+  const email = input('email', { type: 'email', required: true, maxlength: 254, autocomplete: 'email' });
+  const code = input(purpose === 'register' ? 'emailCode' : 'code', { required: true, maxlength: 6, inputmode: 'numeric', autocomplete: 'one-time-code' });
+  code.pattern = '[0-9]{6}';
+  const notice = h('div');
+  const send = h('button', { type: 'button', 'data-purpose': purpose }, t('email.send'));
+  const key = () => `${purpose}:${email.value.trim().toLowerCase()}`;
+  let pending = false;
+  let timer;
+  const refresh = () => {
+    clearTimeout(timer);
+    const seconds = Math.max(0, Math.ceil(((emailCooldowns.get(key()) ?? 0) - Date.now()) / 1000));
+    send.disabled = pending || seconds > 0;
+    send.textContent = pending ? t('email.sending') : seconds > 0 ? t('email.resend', { seconds }) : t('email.send');
+    if (seconds > 0 && send.isConnected) timer = setTimeout(refresh, 1000);
+  };
+  email.addEventListener('input', () => { code.value = ''; notice.replaceChildren(); refresh(); });
+  send.addEventListener('click', async () => {
+    email.value = email.value.trim();
+    if (pending || (emailCooldowns.get(key()) ?? 0) > Date.now() || !email.reportValidity() || (consent && !consent.reportValidity())) return;
+    const sentEmail = email.value;
+    const sentKey = key();
+    pending = true;
+    refresh();
+    notice.replaceChildren();
+    try {
+      const result = await api('POST', '/auth/email/code', { body: { email: sentEmail, purpose, ...(consent ? { acceptTerms: true } : {}) } });
+      for (const [entry, deadline] of emailCooldowns) if (deadline <= Date.now()) emailCooldowns.delete(entry);
+      emailCooldowns.set(sentKey, Date.now() + result.resendAfterSeconds * 1000);
+      if (email.value === sentEmail) notice.replaceChildren(okBox(t('email.sent')));
+    } catch (error) {
+      if (email.value === sentEmail) notice.replaceChildren(errorBox(error));
+    } finally {
+      pending = false;
+      refresh();
+    }
+  });
+  return {
+    el: h('div', {}, field(t('email.address'), email, t('email.hint')), field(t('email.code'), code, t('email.code.hint')), h('div', { class: 'actions' }, send), notice),
+  };
+}
+
+async function emailEnabled() {
+  const result = await api('GET', '/auth/email');
+  if (typeof result?.enabled !== 'boolean') throw new Error(t('email.unavailable'));
+  return result.enabled;
 }
 
 function landingHero() {
@@ -85,9 +135,12 @@ export async function home() {
 
 export async function register(ctx) {
   if (session.user) return go(dashboardFor(session.user), true);
+  const enabled = await emailEnabled();
   const wanted = ctx.params.get('role') === 'contractor' ? 'contractor' : 'homeowner';
   const box = h('div');
   const legalBox = h('div');
+  const consent = h('input', { type: 'checkbox', name: 'acceptTerms', required: true });
+  const verification = enabled ? emailVerification('register', consent) : null;
   const side = h('aside', { class: 'auth-side' });
   const fillSide = (role) =>
     side.replaceChildren(h('h2', {}, t(`reg.side.${role}.title`)), h('ul', { class: 'plain' }, [1, 2, 3].map((n) => h('li', {}, icon('check'), ' ', t(`reg.side.${role}.${n}`)))));
@@ -100,9 +153,10 @@ export async function register(ctx) {
       h('div', { class: 'checks' }, ['homeowner', 'contractor'].map((r) => h('label', { class: 'check' }, h('input', { type: 'radio', name: 'role', value: r, checked: r === wanted, onchange: () => { loadLegal(r); fillSide(r); } }), t(`role.${r}`)))),
     ),
     h('div', { class: 'row2' }, field(t('reg.phone'), input('phone', { type: 'tel', required: true, inputmode: 'numeric', autocomplete: 'tel' }), t('reg.phone.hint')), field(t('reg.name'), input('displayName', { required: true, maxlength: 40, autocomplete: 'name' }))),
+    verification?.el,
     field(t('reg.password'), input('password', { type: 'password', required: true, minlength: 8, maxlength: 128, autocomplete: 'new-password' }), t('reg.password.hint')),
     legalBox,
-    h('label', { class: 'check' }, h('input', { type: 'checkbox', name: 'acceptTerms', required: true }), t('reg.accept')),
+    h('label', { class: 'check' }, consent, t('reg.accept')),
     box,
     h('div', { class: 'actions' }, h('button', { type: 'submit', class: 'primary big' }, t('reg.submit')), link('/login', t('reg.have'))),
   );
@@ -144,7 +198,7 @@ export async function register(ctx) {
 
   onSubmit(form, box, async (data) => {
     const result = await api('POST', '/auth/register', {
-      body: { role: data.get('role'), phone: String(data.get('phone')).trim(), password: data.get('password'), displayName: String(data.get('displayName')).trim(), language: lang(), acceptTerms: data.get('acceptTerms') === 'on' },
+      body: { role: data.get('role'), phone: String(data.get('phone')).trim(), password: data.get('password'), displayName: String(data.get('displayName')).trim(), language: lang(), acceptTerms: data.get('acceptTerms') === 'on', ...(enabled ? { email: String(data.get('email')).trim(), emailCode: data.get('emailCode') } : {}) },
     });
     session.token = result.accessToken;
     session.user = result.user;
@@ -155,6 +209,7 @@ export async function register(ctx) {
 
 export async function login(ctx) {
   if (session.user) return go(dashboardFor(session.user), true);
+  const enabled = await emailEnabled();
   const box = h('div');
   const form = h(
     'form',
@@ -167,10 +222,25 @@ export async function login(ctx) {
   );
   onSubmit(form, box, async (data) => {
     const result = await api('POST', '/auth/login', { body: { phone: String(data.get('phone')).trim(), password: data.get('password') } });
+    signedIn(result);
+  });
+  function signedIn(result) {
     session.token = result.accessToken;
     session.user = result.user;
     const next = ctx.params.get('next');
     go(next && next.startsWith('/') && !next.startsWith('//') ? next : dashboardFor(result.user));
-  });
-  return h('div', { class: 'auth' }, form, h('aside', { class: 'auth-side' }, h('h2', {}, t('login.side.title')), h('p', {}, t('login.side.body'))));
+  }
+  let forms = form;
+  if (enabled) {
+    const notice = h('div');
+    const verification = emailVerification('login');
+    const emailForm = h('form', {}, h('h2', {}, t('email.login')), verification.el, notice, h('div', { class: 'actions' }, h('button', { type: 'submit', class: 'primary big' }, t('email.login'))));
+    onSubmit(emailForm, notice, async (data) => {
+      const result = await api('POST', '/auth/email/login', { body: { email: String(data.get('email')).trim(), code: data.get('code') } });
+      signedIn(result);
+    });
+    form.classList.remove('card');
+    forms = h('div', { class: 'card stack' }, form, emailForm);
+  }
+  return h('div', { class: 'auth' }, forms, h('aside', { class: 'auth-side' }, h('h2', {}, t('login.side.title')), h('p', {}, t('login.side.body'))));
 }

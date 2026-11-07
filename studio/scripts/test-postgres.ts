@@ -12,7 +12,7 @@ import { spawn } from 'node:child_process';
 import { PGlite } from '@electric-sql/pglite';
 import { PGLiteSocketServer } from '@electric-sql/pglite-socket';
 
-const FILES = ['dist/test/api/marketplace.test.js', 'dist/test/api/consent.test.js', 'dist/test/api/uploads.test.js', 'dist/test/api/site.test.js', 'dist/test/api/places.test.js', 'dist/test/api/maps.test.js'];
+const FILES = ['dist/test/api/marketplace.test.js', 'dist/test/api/consent.test.js', 'dist/test/api/uploads.test.js', 'dist/test/api/site.test.js', 'dist/test/api/places.test.js', 'dist/test/api/maps.test.js', 'dist/test/api/email.test.js'];
 
 let url = process.env.STUDIO_TEST_DATABASE_URL ?? '';
 let stop = async () => {};

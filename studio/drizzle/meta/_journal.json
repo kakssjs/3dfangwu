@@ -57,6 +57,13 @@
       "when": 1794005351483,
       "tag": "0007_workable_alice",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1794058084026,
+      "tag": "0008_living_radioactive_man",
+      "breakpoints": true
     }
   ]
 }

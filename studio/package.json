@@ -18,11 +18,14 @@
     "db:generate": "drizzle-kit generate",
     "sample": "node --disable-warning=ExperimentalWarning scripts/extract-floorplan-sample.ts",
     "home": "node --disable-warning=ExperimentalWarning scripts/home.ts",
-    "homebox": "node --disable-warning=ExperimentalWarning scripts/homebox.ts"
+    "homebox": "node --disable-warning=ExperimentalWarning scripts/homebox.ts",
+    "email:authorize": "node --disable-warning=ExperimentalWarning scripts/outlook-authorize.ts",
+    "email:test": "node --disable-warning=ExperimentalWarning scripts/email-test.ts"
   },
   "devDependencies": {
     "@electric-sql/pglite-socket": "0.2.18",
     "@types/node": "24.19.2",
+    "@types/nodemailer": "8.0.2",
     "@types/pg": "8.23.1",
     "drizzle-kit": "0.31.11",
     "playwright-core": "1.65.0",
@@ -45,6 +48,7 @@
     "drizzle-orm": "0.45.4",
     "langchain": "1.6.2",
     "langsmith": "0.9.0",
+    "nodemailer": "10.3.1",
     "pg": "8.23.1",
     "reflect-metadata": "0.2.2",
     "rxjs": "7.8.2",

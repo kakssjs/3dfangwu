@@ -1,12 +1,13 @@
-import { ConflictException, Inject, Injectable, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Inject, Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { eq } from 'drizzle-orm';
+import { and, eq, isNotNull } from 'drizzle-orm';
 import type { Db } from '../db/database.ts';
 import { contractorProfiles, users, type User } from '../db/schema.ts';
 import { TERMS_VERSION, type ContractorStatus, type Language, type Role } from '../domain.ts';
 import { DB } from '../tokens.ts';
 import type { AuthUser } from './auth.guard.ts';
-import type { LoginDto, RegisterDto } from './auth.dto.ts';
+import type { EmailLoginDto, LoginDto, RegisterDto } from './auth.dto.ts';
+import { EmailService } from './email.service.ts';
 import { hashPassword, verifyPassword } from './password.ts';
 
 export interface AccountView {
@@ -30,27 +31,50 @@ const UNUSED_HASH = hashPassword('not anyone’s password');
 export class AuthService {
   private readonly db: Db;
   private readonly jwt: JwtService;
+  private readonly email: EmailService;
 
-  constructor(@Inject(DB) db: Db, jwt: JwtService) {
+  constructor(@Inject(DB) db: Db, jwt: JwtService, email: EmailService) {
     this.db = db;
     this.jwt = jwt;
+    this.email = email;
   }
 
   async register(dto: RegisterDto): Promise<Session> {
-    const [user] = await this.db
-      .insert(users)
-      .values({
+    if (this.email.enabled && (!dto.email || !dto.emailCode)) {
+      throw new BadRequestException('Email and emailCode are required');
+    }
+    const passwordHash = await hashPassword(dto.password);
+    const user = await this.db.transaction(async (tx) => {
+      if (this.email.enabled && !await this.email.consume(tx, dto.email!, dto.emailCode!, 'register')) return false;
+      const [created] = await tx.insert(users).values({
         role: dto.role,
         phone: dto.phone,
-        passwordHash: await hashPassword(dto.password),
+        passwordHash,
+        email: this.email.enabled ? dto.email : null,
+        emailVerifiedAt: this.email.enabled ? new Date() : null,
         displayName: dto.displayName,
         language: dto.language,
         consentVersion: TERMS_VERSION,
         consentAt: new Date(),
       })
-      .onConflictDoNothing({ target: users.phone })
+      .onConflictDoNothing()
       .returning();
-    if (!user) throw new ConflictException('This phone number is already registered: sign in instead');
+      if (!created) throw new ConflictException('This phone number or email is already registered: sign in instead');
+      return created;
+    });
+    if (user === false) throw new BadRequestException('Invalid or expired verification code');
+    return this.session(user);
+  }
+
+  async emailLogin(dto: EmailLoginDto): Promise<Session> {
+    this.email.requireEnabled();
+    const user = await this.db.transaction(async (tx) => {
+      if (!await this.email.consume(tx, dto.email, dto.code, 'login')) return undefined;
+      const [found] = await tx.select().from(users)
+        .where(and(eq(users.email, dto.email), isNotNull(users.emailVerifiedAt))).limit(1);
+      return found;
+    });
+    if (!user) throw new UnauthorizedException('Invalid or expired verification code');
     return this.session(user);
   }
 
