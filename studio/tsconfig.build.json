@@ -1,6 +1,7 @@
 {
   // The API uses NestJS decorators, which Node can't run straight from TypeScript, so it's
-  // compiled to dist/ first (`npm run build`). The scripts in scripts/ still run directly.
+  // compiled to dist/ first (`npm run build`). The scripts in scripts/ still run directly, except the
+  // two email ones: they are compiled too, because the server only has dist/ (no TypeScript sources).
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "noEmit": false,
@@ -9,5 +10,5 @@
     "outDir": "dist",
     "sourceMap": true
   },
-  "include": ["src", "test/api"]
+  "include": ["src", "test/api", "scripts/outlook-authorize.ts", "scripts/email-test.ts"]
 }

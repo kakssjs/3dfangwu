@@ -19,8 +19,8 @@
     "sample": "node --disable-warning=ExperimentalWarning scripts/extract-floorplan-sample.ts",
     "home": "node --disable-warning=ExperimentalWarning scripts/home.ts",
     "homebox": "node --disable-warning=ExperimentalWarning scripts/homebox.ts",
-    "email:authorize": "node --disable-warning=ExperimentalWarning scripts/outlook-authorize.ts",
-    "email:test": "node --disable-warning=ExperimentalWarning scripts/email-test.ts"
+    "email:authorize": "node dist/scripts/outlook-authorize.js",
+    "email:test": "node dist/scripts/email-test.js"
   },
   "devDependencies": {
     "@electric-sql/pglite-socket": "0.2.18",
