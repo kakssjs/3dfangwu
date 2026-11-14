@@ -27,6 +27,29 @@ export function animatePage(main) {
     reveal.observe(panel);
   });
   if (matchMedia('(hover: hover) and (pointer: fine)').matches && !reduced.matches) {
+    // Spotlight: cards read the pointer position from --mx/--my (styles.css).
+    main.addEventListener('pointermove', (event) => {
+      const card = event.target.closest?.('.card');
+      if (!card) return;
+      const box = card.getBoundingClientRect();
+      card.style.setProperty('--mx', `${event.clientX - box.left}px`);
+      card.style.setProperty('--my', `${event.clientY - box.top}px`);
+    }, { signal: controller.signal, passive: true });
+    // Magnetic primary buttons drift a few pixels toward the pointer.
+    main.querySelectorAll('.btn.primary, button.primary').forEach((button) => {
+      button.addEventListener('pointermove', (event) => {
+        if (reduced.matches) return;
+        const box = button.getBoundingClientRect();
+        const x = (event.clientX - box.left - box.width / 2) * .18;
+        const y = (event.clientY - box.top - box.height / 2) * .3;
+        animations.get(button)?.cancel();
+        animations.set(button, button.animate({ translate: `${x}px ${y}px` }, { duration: 200, fill: 'forwards' }));
+      }, { signal: controller.signal });
+      button.addEventListener('pointerleave', () => {
+        animations.get(button)?.cancel();
+        animations.set(button, button.animate({ translate: '0 0' }, { duration: 500, easing: 'cubic-bezier(.3,1.6,.5,1)', fill: 'forwards' }));
+      }, { signal: controller.signal });
+    });
     main.querySelectorAll('.workspace-intro, .home-features .feature').forEach((panel) => {
       panel.addEventListener('pointermove', (event) => {
         if (reduced.matches) return;
